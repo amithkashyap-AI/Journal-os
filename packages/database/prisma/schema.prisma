@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  PUBLISHER
+  EDITOR
+  REVIEWER
+  AUTHOR
+  READER
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  REVISIONS_REQUESTED
+  ACCEPTED
+  REJECTED
+  PUBLISHED
+  WITHDRAWN
+}
+
+enum ReviewRecommendation {
+  ACCEPT
+  MINOR_REVISION
+  MAJOR_REVISION
+  REJECT
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  roles        UserRole[] @default([AUTHOR])
+  affiliation  String?
+  orcid        String?    @unique
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  submissions Submission[]
+  reviews     Review[]
+
+  @@map("users")
+}
+
+model Publisher {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  website   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  journals    Journal[]
+  conferences Conference[]
+  books       Book[]
+
+  @@map("publishers")
+}
+
+model Journal {
+  id          String   @id @default(cuid())
+  publisherId String
+  title       String
+  slug        String   @unique
+  issn        String?  @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  publisher   Publisher    @relation(fields: [publisherId], references: [id])
+  submissions Submission[]
+
+  @@map("journals")
+}
+
+model Conference {
+  id          String   @id @default(cuid())
+  publisherId String
+  title       String
+  slug        String   @unique
+  location    String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  publisher Publisher @relation(fields: [publisherId], references: [id])
+
+  @@map("conferences")
+}
+
+model Book {
+  id          String   @id @default(cuid())
+  publisherId String
+  title       String
+  slug        String   @unique
+  isbn        String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  publisher Publisher @relation(fields: [publisherId], references: [id])
+
+  @@map("books")
+}
+
+model Submission {
+  id            String           @id @default(cuid())
+  journalId     String
+  authorId      String
+  title         String
+  abstract      String
+  keywords      String[]
+  status        SubmissionStatus @default(DRAFT)
+  manuscriptUrl String?
+  doi           String?          @unique
+  submittedAt   DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  journal Journal  @relation(fields: [journalId], references: [id])
+  author  User     @relation(fields: [authorId], references: [id])
+  reviews Review[]
+
+  @@index([journalId, status])
+  @@map("submissions")
+}
+
+model Review {
+  id             String                @id @default(cuid())
+  submissionId   String
+  reviewerId     String
+  recommendation ReviewRecommendation?
+  comments       String?
+  dueAt          DateTime?
+  submittedAt    DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+  reviewer   User       @relation(fields: [reviewerId], references: [id])
+
+  @@unique([submissionId, reviewerId])
+  @@map("reviews")
+}

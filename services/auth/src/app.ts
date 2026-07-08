@@ -1,0 +1,107 @@
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import fastifyJwt from "@fastify/jwt";
+import bcrypt from "bcryptjs";
+import { loginSchema, registerSchema } from "@rpos/validation";
+import type { JwtPayload, PublicUser } from "@rpos/types";
+import type { StoredUser, UserStore } from "./store.js";
+
+declare module "@fastify/jwt" {
+  interface FastifyJWT {
+    payload: JwtPayload;
+    user: JwtPayload;
+  }
+}
+
+declare module "fastify" {
+  interface FastifyInstance {
+    authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+  }
+}
+
+export interface AppOptions {
+  users: UserStore;
+  jwtSecret: string;
+  jwtExpiresIn?: string;
+  logger?: boolean;
+}
+
+function toPublicUser(user: StoredUser): PublicUser {
+  return { id: user.id, email: user.email, name: user.name, roles: user.roles };
+}
+
+export function buildApp(options: AppOptions): FastifyInstance {
+  const app = Fastify({ logger: options.logger ?? false });
+  const { users } = options;
+
+  app.register(fastifyJwt, {
+    secret: options.jwtSecret,
+    sign: { expiresIn: options.jwtExpiresIn ?? "1h" },
+  });
+
+  app.decorate("authenticate", async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      await request.jwtVerify();
+    } catch {
+      await reply.code(401).send({ error: "UNAUTHORIZED" });
+    }
+  });
+
+  app.get("/health", async () => ({
+    status: "ok" as const,
+    service: "auth",
+    uptime: process.uptime(),
+  }));
+
+  app.post("/v1/auth/register", async (request, reply) => {
+    const parsed = registerSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: "VALIDATION_ERROR",
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const email = parsed.data.email.toLowerCase();
+    if (await users.findByEmail(email)) {
+      return reply.code(409).send({ error: "EMAIL_ALREADY_REGISTERED" });
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+    const user = await users.create({
+      email,
+      name: parsed.data.name,
+      passwordHash,
+      roles: ["AUTHOR"],
+    });
+
+    return reply.code(201).send({ user: toPublicUser(user) });
+  });
+
+  app.post("/v1/auth/login", async (request, reply) => {
+    const parsed = loginSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: "VALIDATION_ERROR",
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const user = await users.findByEmail(parsed.data.email.toLowerCase());
+    if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+      return reply.code(401).send({ error: "INVALID_CREDENTIALS" });
+    }
+
+    const accessToken = app.jwt.sign({ sub: user.id, email: user.email, roles: user.roles });
+    return reply.send({ accessToken, user: toPublicUser(user) });
+  });
+
+  app.get("/v1/auth/me", { onRequest: [app.authenticate] }, async (request, reply) => {
+    const user = await users.findById(request.user.sub);
+    if (!user) {
+      return reply.code(404).send({ error: "USER_NOT_FOUND" });
+    }
+    return reply.send({ user: toPublicUser(user) });
+  });
+
+  return app;
+}
