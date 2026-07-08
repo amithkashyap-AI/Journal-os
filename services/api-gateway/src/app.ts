@@ -1,0 +1,114 @@
+import Fastify, { type FastifyInstance } from "fastify";
+import fastifyCors from "@fastify/cors";
+import fastifyProxy from "@fastify/http-proxy";
+import fastifyRateLimit from "@fastify/rate-limit";
+
+export interface Upstreams {
+  auth: string;
+  submission: string;
+  review: string;
+  notification: string;
+  journal: string;
+  files: string;
+}
+
+export interface AppOptions {
+  upstreams: Upstreams;
+  /** Requests per minute per client IP. */
+  rateLimitMax?: number;
+  corsOrigins?: string[];
+  logger?: boolean;
+}
+
+export function buildApp(options: AppOptions): FastifyInstance {
+  const app = Fastify({ logger: options.logger ?? false });
+  const { upstreams } = options;
+
+  app.register(fastifyCors, {
+    origin: options.corsOrigins && options.corsOrigins.length > 0 ? options.corsOrigins : false,
+  });
+
+  app.register(fastifyRateLimit, {
+    max: options.rateLimitMax ?? 300,
+    timeWindow: "1 minute",
+  });
+
+  // Internal-only headers must never cross the public boundary.
+  app.addHook("onRequest", async (request) => {
+    delete request.headers["x-internal-secret"];
+  });
+
+  app.get("/health", async () => ({
+    status: "ok" as const,
+    service: "api-gateway",
+    uptime: process.uptime(),
+  }));
+
+  app.get("/health/services", async () => {
+    const entries = await Promise.all(
+      Object.entries(upstreams).map(async ([name, url]) => {
+        try {
+          const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(2000) });
+          return [name, res.ok ? "ok" : "down"] as const;
+        } catch {
+          return [name, "down"] as const;
+        }
+      }),
+    );
+    const services = Object.fromEntries(entries);
+    const status = Object.values(services).every((state) => state === "ok") ? "ok" : "degraded";
+    return { status, services };
+  });
+
+  const routes: Array<{ prefix: string; upstream: string; rewritePrefix: string; methods?: string[] }> = [
+    { prefix: "/api/auth", upstream: upstreams.auth, rewritePrefix: "/v1/auth" },
+    { prefix: "/api/users", upstream: upstreams.auth, rewritePrefix: "/v1/users" },
+    { prefix: "/api/submissions", upstream: upstreams.submission, rewritePrefix: "/v1/submissions" },
+    { prefix: "/api/reviews", upstream: upstreams.review, rewritePrefix: "/v1/reviews" },
+    { prefix: "/api/journals", upstream: upstreams.journal, rewritePrefix: "/v1/journals" },
+    { prefix: "/api/publishers", upstream: upstreams.journal, rewritePrefix: "/v1/publishers" },
+    { prefix: "/api/files", upstream: upstreams.files, rewritePrefix: "/v1/files" },
+    // The notification POST endpoint is service-to-service only; expose reads alone.
+    {
+      prefix: "/api/notifications",
+      upstream: upstreams.notification,
+      rewritePrefix: "/v1/notifications",
+      methods: ["GET"],
+    },
+  ];
+
+  for (const route of routes) {
+    app.register(fastifyProxy, {
+      upstream: route.upstream,
+      prefix: route.prefix,
+      rewritePrefix: route.rewritePrefix,
+      ...(route.methods ? { httpMethods: route.methods } : {}),
+    });
+  }
+
+  // Reviewer assignment lives on the review service although its path starts
+  // with /submissions; forward it explicitly so the prefix proxy above does
+  // not send it to the submission service.
+  app.post<{ Params: { id: string } }>(
+    "/api/submissions/:id/reviews",
+    async (request, reply) => {
+      const res = await fetch(`${upstreams.review}/v1/submissions/${request.params.id}/reviews`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(request.headers.authorization
+            ? { authorization: request.headers.authorization }
+            : {}),
+        },
+        body: JSON.stringify(request.body ?? {}),
+      });
+      const body = await res.text();
+      return reply
+        .code(res.status)
+        .header("content-type", res.headers.get("content-type") ?? "application/json")
+        .send(body);
+    },
+  );
+
+  return app;
+}
