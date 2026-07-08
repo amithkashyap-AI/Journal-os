@@ -18,6 +18,7 @@
     "@rpos/database": "workspace:*",
     "@rpos/logger": "workspace:*",
     "@rpos/types": "workspace:*",
+    "@rpos/utils": "workspace:*",
     "@rpos/validation": "workspace:*",
     "bcryptjs": "^3.0.2",
     "fastify": "^5.2.1",
