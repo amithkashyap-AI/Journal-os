@@ -9,10 +9,11 @@ import { createSubmission } from "../../lib/submission-actions";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { NativeSelect } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 
 const formSchema = z.object({
-  journalId: z.string().min(1, "Journal is required"),
+  journalId: z.string().min(1, "Pick a journal"),
   title: z.string().min(3, "Title must be at least 3 characters").max(500),
   abstract: z.string().min(10, "Abstract must be at least 10 characters").max(10000),
   keywords: z.string().optional(),
@@ -20,16 +21,19 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function SubmissionForm() {
+export interface JournalOption {
+  id: string;
+  title: string;
+  publisherName?: string;
+}
+
+export function SubmissionForm({ journals }: { journals: JournalOption[] }) {
   const [serverError, setServerError] = useState<string>();
   const {
     register: field,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { journalId: "journal-demo" },
-  });
+  } = useForm<FormValues>({ resolver: zodResolver(formSchema) });
 
   async function onSubmit(values: FormValues) {
     setServerError(undefined);
@@ -45,6 +49,14 @@ export function SubmissionForm() {
     if (result?.error) setServerError(result.error);
   }
 
+  if (journals.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No journals are accepting submissions yet. Ask an administrator to create one.
+      </p>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
       {serverError && (
@@ -53,8 +65,18 @@ export function SubmissionForm() {
         </p>
       )}
       <div className="space-y-1.5">
-        <Label htmlFor="journalId">Journal ID</Label>
-        <Input id="journalId" {...field("journalId")} />
+        <Label htmlFor="journalId">Journal</Label>
+        <NativeSelect id="journalId" defaultValue="" {...field("journalId")}>
+          <option value="" disabled>
+            Select a journal…
+          </option>
+          {journals.map((journal) => (
+            <option key={journal.id} value={journal.id}>
+              {journal.title}
+              {journal.publisherName ? ` — ${journal.publisherName}` : ""}
+            </option>
+          ))}
+        </NativeSelect>
         {errors.journalId && <p className="text-sm text-destructive">{errors.journalId.message}</p>}
       </div>
       <div className="space-y-1.5">

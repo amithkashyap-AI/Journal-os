@@ -28,6 +28,18 @@ function osAssignedPort(host: string): Promise<number> {
   });
 }
 
+/** URL-safe slug from arbitrary text: lowercase, dashes, ASCII only. */
+export function slugify(input: string): string {
+  const slug = input
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100);
+  return slug || "item";
+}
+
 const SEQUENTIAL_SCAN_RANGE = 20;
 
 /**

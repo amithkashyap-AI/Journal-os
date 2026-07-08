@@ -45,6 +45,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   >
                     <ClipboardList className="size-4" /> Reviews
                   </Link>
+                  <Link
+                    href="/journals"
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    <BookOpenText className="size-4" /> Journals
+                  </Link>
                   <form action={logout} className="ml-auto">
                     <Button type="submit" variant="ghost" size="sm">
                       <LogOut /> Sign out

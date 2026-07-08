@@ -1,6 +1,16 @@
 import { createServer, type Server } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { findFreePort, isPortFree } from "../src/index.js";
+import { findFreePort, isPortFree, slugify } from "../src/index.js";
+
+describe("slugify", () => {
+  it("lowercases, strips accents, and dashes separators", () => {
+    expect(slugify("Journal of Émergent Results!")).toBe("journal-of-emergent-results");
+  });
+
+  it("never returns an empty slug", () => {
+    expect(slugify("!!!")).toBe("item");
+  });
+});
 
 function occupy(port: number): Promise<Server> {
   return new Promise((resolve, reject) => {
