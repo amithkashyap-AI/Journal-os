@@ -4,27 +4,18 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSubmissionSchema } from "@rpos/validation";
 import { apiFetch, SUBMISSION_API } from "./api";
+import type { ActionError } from "./auth-actions";
 
-export async function createSubmission(formData: FormData): Promise<void> {
-  const keywords = String(formData.get("keywords") ?? "")
-    .split(",")
-    .map((keyword) => keyword.trim())
-    .filter(Boolean);
-
-  const parsed = createSubmissionSchema.safeParse({
-    journalId: formData.get("journalId"),
-    title: formData.get("title"),
-    abstract: formData.get("abstract"),
-    keywords,
-  });
-  if (!parsed.success) redirect("/submissions/new?error=validation");
+export async function createSubmission(input: unknown): Promise<ActionError | undefined> {
+  const parsed = createSubmissionSchema.safeParse(input);
+  if (!parsed.success) return { error: "Check your input — title and abstract are required." };
 
   const res = await apiFetch(SUBMISSION_API, "/v1/submissions", {
     method: "POST",
     body: JSON.stringify(parsed.data),
   });
   if (res.status === 401) redirect("/login");
-  if (!res.ok) redirect("/submissions/new?error=failed");
+  if (!res.ok) return { error: "Submission failed — please try again." };
 
   const body = (await res.json()) as { submission: { id: string } };
   redirect(`/submissions/${body.submission.id}`);

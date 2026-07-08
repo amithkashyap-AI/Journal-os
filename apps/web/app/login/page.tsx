@@ -1,41 +1,34 @@
 import Link from "next/link";
-import { login } from "../../lib/auth-actions";
+import { LoginForm } from "../../components/forms/login-form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const { error } = await searchParams;
-
+export default function LoginPage() {
   return (
-    <div className="container">
-      <div className="card auth-card">
-        <h1>Sign in</h1>
-        {error && <p className="error">Invalid email or password.</p>}
-        <form action={login}>
-          <div className="form-field">
-            <label htmlFor="email">Email</label>
-            <input id="email" name="email" type="email" required autoComplete="email" />
-          </div>
-          <div className="form-field">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-            />
-          </div>
-          <button type="submit" className="btn">
-            Sign in
-          </button>
-        </form>
-        <p className="meta" style={{ marginTop: "1rem" }}>
-          No account? <Link href="/register">Register</Link>
-        </p>
-      </div>
+    <div className="mx-auto mt-16 max-w-sm">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Sign in</CardTitle>
+          <CardDescription>Access your submissions and reviews</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LoginForm />
+        </CardContent>
+        <CardFooter>
+          <p className="text-sm text-muted-foreground">
+            No account?{" "}
+            <Link href="/register" className="text-primary hover:underline">
+              Register
+            </Link>
+          </p>
+        </CardFooter>
+      </Card>
     </div>
   );
 }

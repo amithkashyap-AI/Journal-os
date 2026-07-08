@@ -2,7 +2,12 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { loginSchema, registerSchema } from "@rpos/validation";
 import { AUTH_API, SESSION_COOKIE } from "./api";
+
+export interface ActionError {
+  error: string;
+}
 
 async function setSession(token: string): Promise<void> {
   const store = await cookies();
@@ -27,33 +32,31 @@ async function loginRequest(email: string, password: string): Promise<string | n
   return body.accessToken;
 }
 
-export async function login(formData: FormData): Promise<void> {
-  const email = String(formData.get("email") ?? "");
-  const password = String(formData.get("password") ?? "");
+export async function login(input: unknown): Promise<ActionError | undefined> {
+  const parsed = loginSchema.safeParse(input);
+  if (!parsed.success) return { error: "Invalid email or password." };
 
-  const token = await loginRequest(email, password);
-  if (!token) redirect("/login?error=invalid");
+  const token = await loginRequest(parsed.data.email, parsed.data.password);
+  if (!token) return { error: "Invalid email or password." };
 
   await setSession(token);
   redirect("/dashboard");
 }
 
-export async function register(formData: FormData): Promise<void> {
-  const email = String(formData.get("email") ?? "");
-  const password = String(formData.get("password") ?? "");
-  const name = String(formData.get("name") ?? "");
+export async function register(input: unknown): Promise<ActionError | undefined> {
+  const parsed = registerSchema.safeParse(input);
+  if (!parsed.success) return { error: "Check your details — password must be 8+ characters." };
 
   const res = await fetch(`${AUTH_API}/v1/auth/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password, name }),
+    body: JSON.stringify(parsed.data),
     cache: "no-store",
   });
+  if (res.status === 409) return { error: "That email is already registered." };
+  if (!res.ok) return { error: "Registration failed — please try again." };
 
-  if (res.status === 409) redirect("/register?error=taken");
-  if (!res.ok) redirect("/register?error=invalid");
-
-  const token = await loginRequest(email, password);
+  const token = await loginRequest(parsed.data.email, parsed.data.password);
   if (!token) redirect("/login");
 
   await setSession(token);

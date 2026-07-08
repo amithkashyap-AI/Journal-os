@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import type { SubmissionStatus } from "@rpos/types";
 import type { SubmissionAction } from "@rpos/workflow-engine";
 import { StatusBadge } from "../../../components/StatusBadge";
+import { Button } from "../../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { apiFetch, getToken, SUBMISSION_API } from "../../../lib/api";
 import { performSubmissionAction } from "../../../lib/submission-actions";
 
@@ -25,6 +27,8 @@ const ACTION_LABELS: Record<SubmissionAction, string> = {
   withdraw: "Withdraw",
 };
 
+const DESTRUCTIVE_ACTIONS: SubmissionAction[] = ["reject", "withdraw"];
+
 export default async function SubmissionPage({
   params,
 }: {
@@ -44,42 +48,54 @@ export default async function SubmissionPage({
   };
 
   return (
-    <div className="container">
-      <div className="card">
-        <div className="page-header">
-          <h1>{submission.title}</h1>
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <CardTitle className="text-xl leading-snug">{submission.title}</CardTitle>
           <StatusBadge status={submission.status} />
         </div>
-        <p className="meta">
+        <p className="text-sm text-muted-foreground">
           Created {new Date(submission.createdAt).toLocaleString()}
           {submission.submittedAt &&
             ` · Submitted ${new Date(submission.submittedAt).toLocaleString()}`}
         </p>
-        <h2>Abstract</h2>
-        <p>{submission.abstract}</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Abstract
+          </h2>
+          <p className="leading-relaxed">{submission.abstract}</p>
+        </div>
         {submission.keywords.length > 0 && (
-          <div className="keywords">
+          <div className="flex flex-wrap gap-1.5">
             {submission.keywords.map((keyword) => (
-              <span key={keyword} className="keyword">
+              <span
+                key={keyword}
+                className="rounded-full border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground"
+              >
                 {keyword}
               </span>
             ))}
           </div>
         )}
         {allowedActions.length > 0 && (
-          <div className="actions">
+          <div className="flex flex-wrap gap-2 border-t pt-4">
             {allowedActions.map((action) => (
               <form key={action} action={performSubmissionAction}>
                 <input type="hidden" name="id" value={submission.id} />
                 <input type="hidden" name="action" value={action} />
-                <button type="submit" className={action === "withdraw" ? "btn btn-secondary" : "btn"}>
+                <Button
+                  type="submit"
+                  variant={DESTRUCTIVE_ACTIONS.includes(action) ? "outline" : "default"}
+                >
                   {ACTION_LABELS[action]}
-                </button>
+                </Button>
               </form>
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
