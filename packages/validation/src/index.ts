@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { USER_ROLES } from "@rpos/types";
+import { REVIEW_RECOMMENDATIONS, USER_ROLES } from "@rpos/types";
 
 export const registerSchema = z.object({
   email: z.string().email(),
@@ -26,3 +26,17 @@ export const createSubmissionSchema = z.object({
 });
 
 export type CreateSubmissionInput = z.infer<typeof createSubmissionSchema>;
+
+export const assignReviewerSchema = z.object({
+  reviewerId: z.string().min(1),
+  dueAt: z.coerce.date().optional(),
+});
+
+export type AssignReviewerInput = z.infer<typeof assignReviewerSchema>;
+
+export const submitReviewSchema = z.object({
+  recommendation: z.enum(REVIEW_RECOMMENDATIONS),
+  comments: z.string().min(10).max(20000),
+});
+
+export type SubmitReviewInput = z.infer<typeof submitReviewSchema>;

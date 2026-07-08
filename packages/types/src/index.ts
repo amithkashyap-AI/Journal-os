@@ -22,6 +22,15 @@ export const SUBMISSION_STATUSES = [
 
 export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 
+export const REVIEW_RECOMMENDATIONS = [
+  "ACCEPT",
+  "MINOR_REVISION",
+  "MAJOR_REVISION",
+  "REJECT",
+] as const;
+
+export type ReviewRecommendation = (typeof REVIEW_RECOMMENDATIONS)[number];
+
 export interface PublicUser {
   id: string;
   email: string;
