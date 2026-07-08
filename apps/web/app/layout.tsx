@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpenText, FilePlus, LayoutDashboard, LogOut } from "lucide-react";
+import { BookOpenText, ClipboardList, FilePlus, LayoutDashboard, LogOut } from "lucide-react";
 import "../styles/globals.css";
 import { getToken } from "../lib/api";
 import { logout } from "../lib/auth-actions";
@@ -38,6 +38,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
                   >
                     <FilePlus className="size-4" /> New Submission
+                  </Link>
+                  <Link
+                    href="/reviews"
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    <ClipboardList className="size-4" /> Reviews
                   </Link>
                   <form action={logout} className="ml-auto">
                     <Button type="submit" variant="ghost" size="sm">

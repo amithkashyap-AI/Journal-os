@@ -1,7 +1,8 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import fastifyJwt from "@fastify/jwt";
 import bcrypt from "bcryptjs";
-import { loginSchema, registerSchema } from "@rpos/validation";
+import { z } from "zod";
+import { loginSchema, registerSchema, userRoleSchema } from "@rpos/validation";
 import type { JwtPayload, PublicUser } from "@rpos/types";
 import type { StoredUser, UserStore } from "./store.js";
 
@@ -101,6 +102,20 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(404).send({ error: "USER_NOT_FOUND" });
     }
     return reply.send({ user: toPublicUser(user) });
+  });
+
+  const listUsersQuerySchema = z.object({ role: userRoleSchema });
+
+  app.get("/v1/users", { onRequest: [app.authenticate] }, async (request, reply) => {
+    if (!request.user.roles.some((role) => role === "EDITOR" || role === "ADMIN")) {
+      return reply.code(403).send({ error: "FORBIDDEN" });
+    }
+    const parsed = listUsersQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "VALIDATION_ERROR" });
+    }
+    const matched = await users.listByRole(parsed.data.role);
+    return reply.send({ users: matched.map(toPublicUser) });
   });
 
   return app;

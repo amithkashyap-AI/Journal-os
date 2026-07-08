@@ -13,10 +13,12 @@ const DRAFT_PAYLOAD = {
 
 describe("submission service", () => {
   let app: FastifyInstance;
+  let store: InMemorySubmissionStore;
 
   beforeEach(async () => {
+    store = new InMemorySubmissionStore();
     app = buildApp({
-      submissions: new InMemorySubmissionStore(),
+      submissions: store,
       jwtSecret: "test-secret-at-least-16",
     });
     await app.ready();
@@ -145,6 +147,26 @@ describe("submission service", () => {
       headers: authHeader("editor-1", ["EDITOR"]),
     });
     expect(all.json().submissions).toHaveLength(2);
+  });
+
+  it("lets an assigned reviewer read the submission but hides it from others", async () => {
+    const draft = await createDraft("author-1");
+    store.addReviewAssignment(draft.id, "reviewer-1");
+
+    const assigned = await app.inject({
+      method: "GET",
+      url: `/v1/submissions/${draft.id}`,
+      headers: authHeader("reviewer-1", ["REVIEWER"]),
+    });
+    expect(assigned.statusCode).toBe(200);
+    expect(assigned.json().submission.id).toBe(draft.id);
+
+    const unassigned = await app.inject({
+      method: "GET",
+      url: `/v1/submissions/${draft.id}`,
+      headers: authHeader("reviewer-2", ["REVIEWER"]),
+    });
+    expect(unassigned.statusCode).toBe(404);
   });
 
   it("returns allowed actions with a single submission", async () => {

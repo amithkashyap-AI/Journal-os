@@ -87,8 +87,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
     { onRequest: [app.authenticate] },
     async (request, reply) => {
       const submission = await submissions.findById(request.params.id);
-      // 404 for both "missing" and "not yours" so we never confirm existence
-      if (!submission || (submission.authorId !== request.user.sub && !isStaff(request.user))) {
+      // 404 for both "missing" and "no access" so we never confirm existence
+      const canRead =
+        submission !== null &&
+        (submission.authorId === request.user.sub ||
+          isStaff(request.user) ||
+          (await submissions.isAssignedReviewer(submission.id, request.user.sub)));
+      if (!submission || !canRead) {
         return reply.code(404).send({ error: "NOT_FOUND" });
       }
       return reply.send({

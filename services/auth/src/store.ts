@@ -12,6 +12,7 @@ export interface StoredUser {
 export interface UserStore {
   findByEmail(email: string): Promise<StoredUser | null>;
   findById(id: string): Promise<StoredUser | null>;
+  listByRole(role: UserRole): Promise<StoredUser[]>;
   create(input: Omit<StoredUser, "id">): Promise<StoredUser>;
 }
 
@@ -27,6 +28,10 @@ export class InMemoryUserStore implements UserStore {
 
   async findById(id: string): Promise<StoredUser | null> {
     return this.byId.get(id) ?? null;
+  }
+
+  async listByRole(role: UserRole): Promise<StoredUser[]> {
+    return [...this.byId.values()].filter((user) => user.roles.includes(role));
   }
 
   async create(input: Omit<StoredUser, "id">): Promise<StoredUser> {

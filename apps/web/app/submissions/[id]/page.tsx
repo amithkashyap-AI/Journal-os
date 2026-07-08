@@ -1,21 +1,20 @@
 import { notFound, redirect } from "next/navigation";
-import type { SubmissionStatus } from "@rpos/types";
+import type { PublicUser } from "@rpos/types";
 import type { SubmissionAction } from "@rpos/workflow-engine";
+import { RecommendationBadge } from "../../../components/RecommendationBadge";
 import { StatusBadge } from "../../../components/StatusBadge";
+import { AssignReviewerForm } from "../../../components/forms/assign-reviewer-form";
 import { Button } from "../../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
-import { apiFetch, getToken, SUBMISSION_API } from "../../../lib/api";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../../components/ui/card";
+import { apiFetch, AUTH_API, getToken, REVIEW_API, SUBMISSION_API } from "../../../lib/api";
+import type { ReviewDto, SubmissionDto } from "../../../lib/dto";
 import { performSubmissionAction } from "../../../lib/submission-actions";
-
-interface SubmissionDetail {
-  id: string;
-  title: string;
-  abstract: string;
-  keywords: string[];
-  status: SubmissionStatus;
-  submittedAt: string | null;
-  createdAt: string;
-}
 
 const ACTION_LABELS: Record<SubmissionAction, string> = {
   submit: "Submit for review",
@@ -38,64 +37,133 @@ export default async function SubmissionPage({
   if (!token) redirect("/login");
 
   const { id } = await params;
-  const res = await apiFetch(SUBMISSION_API, `/v1/submissions/${id}`);
-  if (res.status === 401) redirect("/login");
-  if (res.status === 404) notFound();
+  const [meRes, subRes] = await Promise.all([
+    apiFetch(AUTH_API, "/v1/auth/me"),
+    apiFetch(SUBMISSION_API, `/v1/submissions/${id}`),
+  ]);
+  if (meRes.status === 401 || subRes.status === 401) redirect("/login");
+  if (subRes.status === 404) notFound();
 
-  const { submission, allowedActions } = (await res.json()) as {
-    submission: SubmissionDetail;
+  const { user } = (await meRes.json()) as { user: PublicUser };
+  const { submission, allowedActions } = (await subRes.json()) as {
+    submission: SubmissionDto;
     allowedActions: SubmissionAction[];
   };
+  const isStaff = user.roles.includes("EDITOR") || user.roles.includes("ADMIN");
+
+  let reviews: ReviewDto[] = [];
+  let reviewers: PublicUser[] = [];
+  if (isStaff) {
+    const [reviewsRes, reviewersRes] = await Promise.all([
+      apiFetch(REVIEW_API, `/v1/reviews?submissionId=${submission.id}`),
+      apiFetch(AUTH_API, "/v1/users?role=REVIEWER"),
+    ]);
+    if (reviewsRes.ok) reviews = ((await reviewsRes.json()) as { reviews: ReviewDto[] }).reviews;
+    if (reviewersRes.ok)
+      reviewers = ((await reviewersRes.json()) as { users: PublicUser[] }).users;
+  }
+  const reviewerName = (reviewerId: string) =>
+    reviewers.find((reviewer) => reviewer.id === reviewerId)?.name ?? reviewerId;
+
+  const canAssign = ["SUBMITTED", "UNDER_REVIEW"].includes(submission.status);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <CardTitle className="text-xl leading-snug">{submission.title}</CardTitle>
-          <StatusBadge status={submission.status} />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Created {new Date(submission.createdAt).toLocaleString()}
-          {submission.submittedAt &&
-            ` · Submitted ${new Date(submission.submittedAt).toLocaleString()}`}
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Abstract
-          </h2>
-          <p className="leading-relaxed">{submission.abstract}</p>
-        </div>
-        {submission.keywords.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {submission.keywords.map((keyword) => (
-              <span
-                key={keyword}
-                className="rounded-full border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground"
-              >
-                {keyword}
-              </span>
-            ))}
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4">
+            <CardTitle className="text-xl leading-snug">{submission.title}</CardTitle>
+            <StatusBadge status={submission.status} />
           </div>
-        )}
-        {allowedActions.length > 0 && (
-          <div className="flex flex-wrap gap-2 border-t pt-4">
-            {allowedActions.map((action) => (
-              <form key={action} action={performSubmissionAction}>
-                <input type="hidden" name="id" value={submission.id} />
-                <input type="hidden" name="action" value={action} />
-                <Button
-                  type="submit"
-                  variant={DESTRUCTIVE_ACTIONS.includes(action) ? "outline" : "default"}
+          <p className="text-sm text-muted-foreground">
+            Created {new Date(submission.createdAt).toLocaleString()}
+            {submission.submittedAt &&
+              ` · Submitted ${new Date(submission.submittedAt).toLocaleString()}`}
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Abstract
+            </h2>
+            <p className="leading-relaxed">{submission.abstract}</p>
+          </div>
+          {submission.keywords.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {submission.keywords.map((keyword) => (
+                <span
+                  key={keyword}
+                  className="rounded-full border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground"
                 >
-                  {ACTION_LABELS[action]}
-                </Button>
-              </form>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                  {keyword}
+                </span>
+              ))}
+            </div>
+          )}
+          {allowedActions.length > 0 && (
+            <div className="flex flex-wrap gap-2 border-t pt-4">
+              {allowedActions.map((action) => (
+                <form key={action} action={performSubmissionAction}>
+                  <input type="hidden" name="id" value={submission.id} />
+                  <input type="hidden" name="action" value={action} />
+                  <Button
+                    type="submit"
+                    variant={DESTRUCTIVE_ACTIONS.includes(action) ? "outline" : "default"}
+                  >
+                    {ACTION_LABELS[action]}
+                  </Button>
+                </form>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {isStaff && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Peer review</CardTitle>
+            <CardDescription>
+              {reviews.length === 0
+                ? "No reviewers assigned yet."
+                : `${reviews.filter((review) => review.submittedAt).length} of ${reviews.length} reviews filed.`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {reviews.length > 0 && (
+              <ul className="divide-y">
+                {reviews.map((review) => (
+                  <li key={review.id} className="space-y-1 py-3 first:pt-0">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-medium">{reviewerName(review.reviewerId)}</span>
+                      <RecommendationBadge recommendation={review.recommendation} />
+                    </div>
+                    {review.comments && (
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        {review.comments}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Assigned {new Date(review.createdAt).toLocaleDateString()}
+                      {review.submittedAt &&
+                        ` · Filed ${new Date(review.submittedAt).toLocaleDateString()}`}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canAssign ? (
+              <div className="border-t pt-4">
+                <AssignReviewerForm submissionId={submission.id} reviewers={reviewers} />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Reviewers can only be assigned while the submission is submitted or under review.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }

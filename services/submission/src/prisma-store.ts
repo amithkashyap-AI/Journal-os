@@ -31,4 +31,11 @@ export class PrismaSubmissionStore implements SubmissionStore {
   async update(id: string, patch: SubmissionPatch): Promise<StoredSubmission> {
     return this.db.submission.update({ where: { id }, data: patch });
   }
+
+  async isAssignedReviewer(submissionId: string, userId: string): Promise<boolean> {
+    const count = await this.db.review.count({
+      where: { submissionId, reviewerId: userId },
+    });
+    return count > 0;
+  }
 }

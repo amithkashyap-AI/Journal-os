@@ -1,4 +1,5 @@
 import { getPrisma } from "@rpos/database";
+import type { UserRole } from "@rpos/types";
 import type { StoredUser, UserStore } from "./store.js";
 
 export class PrismaUserStore implements UserStore {
@@ -10,6 +11,13 @@ export class PrismaUserStore implements UserStore {
 
   async findById(id: string): Promise<StoredUser | null> {
     return this.db.user.findUnique({ where: { id } });
+  }
+
+  async listByRole(role: UserRole): Promise<StoredUser[]> {
+    return this.db.user.findMany({
+      where: { roles: { has: role } },
+      orderBy: { name: "asc" },
+    });
   }
 
   async create(input: Omit<StoredUser, "id">): Promise<StoredUser> {

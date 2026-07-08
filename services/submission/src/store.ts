@@ -33,10 +33,21 @@ export interface SubmissionStore {
   listByAuthor(authorId: string): Promise<StoredSubmission[]>;
   listAll(): Promise<StoredSubmission[]>;
   update(id: string, patch: SubmissionPatch): Promise<StoredSubmission>;
+  /** Whether the given user has been assigned as a reviewer of the submission. */
+  isAssignedReviewer(submissionId: string, userId: string): Promise<boolean>;
 }
 
 export class InMemorySubmissionStore implements SubmissionStore {
   private readonly byId = new Map<string, StoredSubmission>();
+  private readonly reviewAssignments = new Set<string>();
+
+  addReviewAssignment(submissionId: string, reviewerId: string): void {
+    this.reviewAssignments.add(`${submissionId}:${reviewerId}`);
+  }
+
+  async isAssignedReviewer(submissionId: string, userId: string): Promise<boolean> {
+    return this.reviewAssignments.has(`${submissionId}:${userId}`);
+  }
 
   async create(data: CreateSubmissionData): Promise<StoredSubmission> {
     const now = new Date();

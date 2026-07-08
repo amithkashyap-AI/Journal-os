@@ -11,9 +11,12 @@ const CREDENTIALS = {
 
 describe("auth service", () => {
   let app: FastifyInstance;
+  let store: InMemoryUserStore;
 
-  beforeEach(() => {
-    app = buildApp({ users: new InMemoryUserStore(), jwtSecret: "test-secret-at-least-16" });
+  beforeEach(async () => {
+    store = new InMemoryUserStore();
+    app = buildApp({ users: store, jwtSecret: "test-secret-at-least-16" });
+    await app.ready();
   });
 
   async function register() {
@@ -91,5 +94,44 @@ describe("auth service", () => {
     const res = await app.inject({ method: "GET", url: "/v1/auth/me" });
     expect(res.statusCode).toBe(401);
     expect(res.json().error).toBe("UNAUTHORIZED");
+  });
+
+  it("lets staff list users by role", async () => {
+    await store.create({
+      email: "rev@example.com",
+      name: "Rev Iewer",
+      passwordHash: "irrelevant",
+      roles: ["REVIEWER"],
+    });
+    await register();
+
+    const editorToken = app.jwt.sign({
+      sub: "editor-1",
+      email: "editor@example.com",
+      roles: ["EDITOR"],
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: "/v1/users?role=REVIEWER",
+      headers: { authorization: `Bearer ${editorToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().users).toHaveLength(1);
+    expect(res.json().users[0]).toMatchObject({ email: "rev@example.com" });
+    expect(res.json().users[0].passwordHash).toBeUndefined();
+  });
+
+  it("forbids non-staff from listing users", async () => {
+    const authorToken = app.jwt.sign({
+      sub: "author-1",
+      email: "author@example.com",
+      roles: ["AUTHOR"],
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: "/v1/users?role=REVIEWER",
+      headers: { authorization: `Bearer ${authorToken}` },
+    });
+    expect(res.statusCode).toBe(403);
   });
 });
