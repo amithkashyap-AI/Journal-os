@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { FileDown } from "lucide-react";
 import type { PublicUser } from "@rpos/types";
 import { RecommendationBadge } from "../../../components/RecommendationBadge";
 import { StatusBadge } from "../../../components/StatusBadge";
@@ -51,11 +52,21 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
               </p>
             )}
           </CardHeader>
-          <CardContent>
-            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Abstract
-            </h2>
-            <p className="leading-relaxed">{submission.abstract}</p>
+          <CardContent className="space-y-3">
+            <div>
+              <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Abstract
+              </h2>
+              <p className="leading-relaxed">{submission.abstract}</p>
+            </div>
+            {submission.manuscriptUrl && (
+              <a
+                href={`/files/${submission.manuscriptUrl.split("/").pop()}`}
+                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+              >
+                <FileDown className="size-4" /> Download manuscript
+              </a>
+            )}
           </CardContent>
         </Card>
       )}

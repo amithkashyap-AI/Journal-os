@@ -1,9 +1,11 @@
 import { notFound, redirect } from "next/navigation";
+import { FileDown } from "lucide-react";
 import type { PublicUser } from "@rpos/types";
 import type { SubmissionAction } from "@rpos/workflow-engine";
 import { RecommendationBadge } from "../../../components/RecommendationBadge";
 import { StatusBadge } from "../../../components/StatusBadge";
 import { AssignReviewerForm } from "../../../components/forms/assign-reviewer-form";
+import { ManuscriptUpload } from "../../../components/forms/manuscript-upload";
 import { Button } from "../../../components/ui/button";
 import {
   Card,
@@ -66,6 +68,10 @@ export default async function SubmissionPage({
     reviewers.find((reviewer) => reviewer.id === reviewerId)?.name ?? reviewerId;
 
   const canAssign = ["SUBMITTED", "UNDER_REVIEW"].includes(submission.status);
+  const isOwner = submission.authorId === user.id;
+  const canEditManuscript =
+    isOwner && ["DRAFT", "REVISIONS_REQUESTED"].includes(submission.status);
+  const manuscriptFileId = submission.manuscriptUrl?.split("/").pop();
 
   return (
     <div className="space-y-6">
@@ -100,6 +106,27 @@ export default async function SubmissionPage({
               ))}
             </div>
           )}
+          <div className="space-y-2 border-t pt-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Manuscript
+            </h2>
+            {manuscriptFileId ? (
+              <a
+                href={`/files/${manuscriptFileId}`}
+                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+              >
+                <FileDown className="size-4" /> Download manuscript
+              </a>
+            ) : (
+              <p className="text-sm text-muted-foreground">No manuscript uploaded yet.</p>
+            )}
+            {canEditManuscript && (
+              <ManuscriptUpload
+                submissionId={submission.id}
+                hasManuscript={Boolean(manuscriptFileId)}
+              />
+            )}
+          </div>
           {allowedActions.length > 0 && (
             <div className="flex flex-wrap gap-2 border-t pt-4">
               {allowedActions.map((action) => (

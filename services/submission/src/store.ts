@@ -9,6 +9,7 @@ export interface StoredSubmission {
   abstract: string;
   keywords: string[];
   status: SubmissionStatus;
+  manuscriptUrl: string | null;
   submittedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -25,6 +26,7 @@ export interface CreateSubmissionData {
 export interface SubmissionPatch {
   status?: SubmissionStatus;
   submittedAt?: Date;
+  manuscriptUrl?: string;
 }
 
 export interface SubmissionStore {
@@ -55,6 +57,7 @@ export class InMemorySubmissionStore implements SubmissionStore {
       id: randomUUID(),
       ...data,
       status: "DRAFT",
+      manuscriptUrl: null,
       submittedAt: null,
       createdAt: now,
       updatedAt: now,

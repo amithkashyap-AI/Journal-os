@@ -160,6 +160,36 @@ describe("submission service", () => {
     expect(all.json().submissions).toHaveLength(2);
   });
 
+  it("lets the author attach a manuscript while editable, blocks it after submit", async () => {
+    const draft = await createDraft("author-1");
+
+    const attach = await app.inject({
+      method: "PATCH",
+      url: `/v1/submissions/${draft.id}/manuscript`,
+      headers: authHeader("author-1", ["AUTHOR"]),
+      payload: { manuscriptUrl: "/v1/files/file-123" },
+    });
+    expect(attach.statusCode).toBe(200);
+    expect(attach.json().submission.manuscriptUrl).toBe("/v1/files/file-123");
+
+    const other = await app.inject({
+      method: "PATCH",
+      url: `/v1/submissions/${draft.id}/manuscript`,
+      headers: authHeader("author-2", ["AUTHOR"]),
+      payload: { manuscriptUrl: "/v1/files/file-456" },
+    });
+    expect(other.statusCode).toBe(404);
+
+    await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+    const afterSubmit = await app.inject({
+      method: "PATCH",
+      url: `/v1/submissions/${draft.id}/manuscript`,
+      headers: authHeader("author-1", ["AUTHOR"]),
+      payload: { manuscriptUrl: "/v1/files/file-789" },
+    });
+    expect(afterSubmit.statusCode).toBe(409);
+  });
+
   it("notifies the author on editorial decisions but not on their own submit", async () => {
     const draft = await createDraft("author-1");
     await act(draft.id, "submit", "author-1", ["AUTHOR"]);

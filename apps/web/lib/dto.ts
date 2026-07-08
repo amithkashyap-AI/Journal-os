@@ -8,6 +8,7 @@ export interface SubmissionDto {
   abstract: string;
   keywords: string[];
   status: SubmissionStatus;
+  manuscriptUrl: string | null;
   submittedAt: string | null;
   createdAt: string;
 }

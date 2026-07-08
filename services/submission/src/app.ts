@@ -115,6 +115,37 @@ export function buildApp(options: AppOptions): FastifyInstance {
     },
   );
 
+  const manuscriptSchema = z.object({ manuscriptUrl: z.string().min(1).max(500) });
+  // A manuscript can only be attached while the author can still edit
+  const EDITABLE_STATUSES = ["DRAFT", "REVISIONS_REQUESTED"];
+
+  app.patch<{ Params: { id: string } }>(
+    "/v1/submissions/:id/manuscript",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const parsed = manuscriptSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({
+          error: "VALIDATION_ERROR",
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const submission = await submissions.findById(request.params.id);
+      if (!submission || submission.authorId !== request.user.sub) {
+        return reply.code(404).send({ error: "NOT_FOUND" });
+      }
+      if (!EDITABLE_STATUSES.includes(submission.status)) {
+        return reply.code(409).send({ error: "INVALID_STATE" });
+      }
+
+      const updated = await submissions.update(submission.id, {
+        manuscriptUrl: parsed.data.manuscriptUrl,
+      });
+      return reply.send({ submission: updated });
+    },
+  );
+
   app.post<{ Params: { id: string } }>(
     "/v1/submissions/:id/actions",
     { onRequest: [app.authenticate] },
