@@ -3,6 +3,7 @@ import fastifyJwt from "@fastify/jwt";
 import { z } from "zod";
 import { createSubmissionSchema } from "@rpos/validation";
 import { applyTransition, allowedActions, SUBMISSION_ACTIONS } from "@rpos/workflow-engine";
+import { NoopNotifier, type Notifier } from "@rpos/shared";
 import type { JwtPayload, UserRole } from "@rpos/types";
 import type { SubmissionStore } from "./store.js";
 
@@ -22,10 +23,20 @@ declare module "fastify" {
 export interface AppOptions {
   submissions: SubmissionStore;
   jwtSecret: string;
+  notifier?: Notifier;
   logger?: boolean;
 }
 
 const actionSchema = z.object({ action: z.enum(SUBMISSION_ACTIONS) });
+
+// Actions whose outcome the author should hear about
+const AUTHOR_NOTIFY_ACTIONS = new Set([
+  "start_review",
+  "request_revisions",
+  "accept",
+  "reject",
+  "publish",
+]);
 
 function hasAnyRole(user: JwtPayload, ...roles: UserRole[]): boolean {
   return user.roles.some((role) => roles.includes(role));
@@ -38,6 +49,7 @@ function isStaff(user: JwtPayload): boolean {
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
   const { submissions } = options;
+  const notifier = options.notifier ?? new NoopNotifier();
 
   app.register(fastifyJwt, { secret: options.jwtSecret });
 
@@ -130,6 +142,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
         status: result.status,
         ...(parsed.data.action === "submit" ? { submittedAt: new Date() } : {}),
       });
+
+      if (AUTHOR_NOTIFY_ACTIONS.has(parsed.data.action)) {
+        void notifier.notify({
+          userId: submission.authorId,
+          type: "SUBMISSION_DECISION",
+          data: { title: submission.title, status: updated.status },
+        });
+      }
+
       return reply.send({ submission: updated });
     },
   );

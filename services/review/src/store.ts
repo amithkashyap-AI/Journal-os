@@ -16,6 +16,7 @@ export interface StoredReview {
 export interface SubmissionInfo {
   id: string;
   status: SubmissionStatus;
+  title: string;
 }
 
 export interface CreateReviewData {

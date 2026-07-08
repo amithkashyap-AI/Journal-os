@@ -14,7 +14,7 @@ export class PrismaReviewStore implements ReviewStore {
   async findSubmission(id: string): Promise<SubmissionInfo | null> {
     return this.db.submission.findUnique({
       where: { id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, title: true },
     });
   }
 

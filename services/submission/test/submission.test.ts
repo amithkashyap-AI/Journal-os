@@ -1,8 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import type { UserRole } from "@rpos/types";
+import type { NotificationEvent, Notifier } from "@rpos/shared";
 import { buildApp } from "../src/app.js";
 import { InMemorySubmissionStore } from "../src/store.js";
+
+class RecordingNotifier implements Notifier {
+  events: NotificationEvent[] = [];
+  async notify(event: NotificationEvent): Promise<void> {
+    this.events.push(event);
+  }
+}
 
 const DRAFT_PAYLOAD = {
   journalId: "journal-1",
@@ -14,12 +22,15 @@ const DRAFT_PAYLOAD = {
 describe("submission service", () => {
   let app: FastifyInstance;
   let store: InMemorySubmissionStore;
+  let notifier: RecordingNotifier;
 
   beforeEach(async () => {
     store = new InMemorySubmissionStore();
+    notifier = new RecordingNotifier();
     app = buildApp({
       submissions: store,
       jwtSecret: "test-secret-at-least-16",
+      notifier,
     });
     await app.ready();
   });
@@ -147,6 +158,21 @@ describe("submission service", () => {
       headers: authHeader("editor-1", ["EDITOR"]),
     });
     expect(all.json().submissions).toHaveLength(2);
+  });
+
+  it("notifies the author on editorial decisions but not on their own submit", async () => {
+    const draft = await createDraft("author-1");
+    await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+    expect(notifier.events).toHaveLength(0);
+
+    await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+    await act(draft.id, "accept", "editor-1", ["EDITOR"]);
+    expect(notifier.events).toHaveLength(2);
+    expect(notifier.events[1]).toMatchObject({
+      userId: "author-1",
+      type: "SUBMISSION_DECISION",
+      data: { title: DRAFT_PAYLOAD.title, status: "ACCEPTED" },
+    });
   });
 
   it("lets an assigned reviewer read the submission but hides it from others", async () => {

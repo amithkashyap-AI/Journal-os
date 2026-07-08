@@ -17,6 +17,7 @@
     "@rpos/config": "workspace:*",
     "@rpos/database": "workspace:*",
     "@rpos/logger": "workspace:*",
+    "@rpos/shared": "workspace:*",
     "@rpos/types": "workspace:*",
     "@rpos/utils": "workspace:*",
     "@rpos/validation": "workspace:*",

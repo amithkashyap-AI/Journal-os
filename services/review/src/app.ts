@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import fastifyJwt from "@fastify/jwt";
 import { z } from "zod";
 import { assignReviewerSchema, submitReviewSchema } from "@rpos/validation";
+import { NoopNotifier, type Notifier } from "@rpos/shared";
 import type { JwtPayload, UserRole } from "@rpos/types";
 import type { ReviewStore } from "./store.js";
 
@@ -21,6 +22,7 @@ declare module "fastify" {
 export interface AppOptions {
   reviews: ReviewStore;
   jwtSecret: string;
+  notifier?: Notifier;
   logger?: boolean;
 }
 
@@ -40,6 +42,7 @@ function isStaff(user: JwtPayload): boolean {
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
   const { reviews } = options;
+  const notifier = options.notifier ?? new NoopNotifier();
 
   app.register(fastifyJwt, { secret: options.jwtSecret });
 
@@ -94,6 +97,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
         reviewerId: parsed.data.reviewerId,
         dueAt: parsed.data.dueAt,
       });
+
+      void notifier.notify({
+        userId: review.reviewerId,
+        type: "REVIEW_ASSIGNED",
+        data: { title: submission.title, dueAt: review.dueAt?.toISOString() },
+      });
+
       return reply.code(201).send({ review });
     },
   );

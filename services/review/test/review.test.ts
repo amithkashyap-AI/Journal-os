@@ -1,18 +1,28 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import type { UserRole } from "@rpos/types";
+import type { NotificationEvent, Notifier } from "@rpos/shared";
 import { buildApp } from "../src/app.js";
 import { InMemoryReviewStore } from "../src/store.js";
+
+class RecordingNotifier implements Notifier {
+  events: NotificationEvent[] = [];
+  async notify(event: NotificationEvent): Promise<void> {
+    this.events.push(event);
+  }
+}
 
 describe("review service", () => {
   let app: FastifyInstance;
   let store: InMemoryReviewStore;
+  let notifier: RecordingNotifier;
 
   beforeEach(async () => {
     store = new InMemoryReviewStore();
-    store.addSubmission({ id: "sub-1", status: "UNDER_REVIEW" });
-    store.addSubmission({ id: "sub-draft", status: "DRAFT" });
-    app = buildApp({ reviews: store, jwtSecret: "test-secret-at-least-16" });
+    store.addSubmission({ id: "sub-1", status: "UNDER_REVIEW", title: "Paper One" });
+    store.addSubmission({ id: "sub-draft", status: "DRAFT", title: "Draft Paper" });
+    notifier = new RecordingNotifier();
+    app = buildApp({ reviews: store, jwtSecret: "test-secret-at-least-16", notifier });
     await app.ready();
   });
 
@@ -38,6 +48,16 @@ describe("review service", () => {
       reviewerId: "reviewer-1",
       recommendation: null,
       submittedAt: null,
+    });
+  });
+
+  it("notifies the reviewer when assigned", async () => {
+    await assign();
+    expect(notifier.events).toHaveLength(1);
+    expect(notifier.events[0]).toMatchObject({
+      userId: "reviewer-1",
+      type: "REVIEW_ASSIGNED",
+      data: { title: "Paper One" },
     });
   });
 

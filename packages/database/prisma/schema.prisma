@@ -34,6 +34,12 @@ enum ReviewRecommendation {
   REJECT
 }
 
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model User {
   id           String     @id @default(cuid())
   email        String     @unique
@@ -45,8 +51,9 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  submissions Submission[]
-  reviews     Review[]
+  submissions   Submission[]
+  reviews       Review[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -150,4 +157,21 @@ model Review {
 
   @@unique([submissionId, reviewerId])
   @@map("reviews")
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  userId    String
+  type      String
+  subject   String
+  body      String
+  status    NotificationStatus @default(PENDING)
+  error     String?
+  sentAt    DateTime?
+  createdAt DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("notifications")
 }

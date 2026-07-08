@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { baseEnvSchema, loadEnv } from "@rpos/config";
+import { createNotifier } from "@rpos/shared";
 import { findFreePort } from "@rpos/utils";
 import { buildApp } from "./app.js";
 import { PrismaSubmissionStore } from "./prisma-store.js";
@@ -8,12 +9,15 @@ const env = loadEnv(
   baseEnvSchema.extend({
     SUBMISSION_PORT: z.coerce.number().int().positive().optional(),
     JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
+    NOTIFICATION_API_URL: z.string().url().optional(),
+    INTERNAL_API_SECRET: z.string().min(16).optional(),
   }),
 );
 
 const app = buildApp({
   submissions: new PrismaSubmissionStore(),
   jwtSecret: env.JWT_SECRET,
+  notifier: createNotifier(env),
   logger: true,
 });
 

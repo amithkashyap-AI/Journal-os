@@ -123,11 +123,34 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  packages/email:
+    dependencies:
+      '@rpos/logger':
+        specifier: workspace:*
+        version: link:../logger
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
   packages/logger:
     dependencies:
       pino:
         specifier: ^9.6.0
         version: 9.14.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.7
+        version: 22.20.1
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  packages/shared:
+    dependencies:
+      '@rpos/logger':
+        specifier: workspace:*
+        version: link:../logger
     devDependencies:
       '@types/node':
         specifier: ^22.10.7
@@ -226,6 +249,49 @@ importers:
         specifier: ^3.0.5
         version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.0)
 
+  services/notification:
+    dependencies:
+      '@fastify/jwt':
+        specifier: ^9.0.3
+        version: 9.1.0
+      '@rpos/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@rpos/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@rpos/email':
+        specifier: workspace:*
+        version: link:../../packages/email
+      '@rpos/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@rpos/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      '@rpos/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
+      fastify:
+        specifier: ^5.2.1
+        version: 5.10.0
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.7
+        version: 22.20.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.0
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.5
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.0)
+
   services/review:
     dependencies:
       '@fastify/jwt':
@@ -240,6 +306,9 @@ importers:
       '@rpos/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@rpos/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@rpos/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -283,6 +352,9 @@ importers:
       '@rpos/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@rpos/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@rpos/types':
         specifier: workspace:*
         version: link:../../packages/types
