@@ -1,0 +1,34 @@
+import { getPrisma } from "@rpos/database";
+import type {
+  CreateSubmissionData,
+  StoredSubmission,
+  SubmissionPatch,
+  SubmissionStore,
+} from "./store.js";
+
+export class PrismaSubmissionStore implements SubmissionStore {
+  private readonly db = getPrisma();
+
+  async create(data: CreateSubmissionData): Promise<StoredSubmission> {
+    return this.db.submission.create({ data });
+  }
+
+  async findById(id: string): Promise<StoredSubmission | null> {
+    return this.db.submission.findUnique({ where: { id } });
+  }
+
+  async listByAuthor(authorId: string): Promise<StoredSubmission[]> {
+    return this.db.submission.findMany({
+      where: { authorId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async listAll(): Promise<StoredSubmission[]> {
+    return this.db.submission.findMany({ orderBy: { createdAt: "desc" } });
+  }
+
+  async update(id: string, patch: SubmissionPatch): Promise<StoredSubmission> {
+    return this.db.submission.update({ where: { id }, data: patch });
+  }
+}

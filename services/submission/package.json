@@ -1,0 +1,32 @@
+{
+  "name": "@rpos/service-submission",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@fastify/jwt": "^9.0.3",
+    "@rpos/config": "workspace:*",
+    "@rpos/database": "workspace:*",
+    "@rpos/logger": "workspace:*",
+    "@rpos/types": "workspace:*",
+    "@rpos/validation": "workspace:*",
+    "@rpos/workflow-engine": "workspace:*",
+    "fastify": "^5.2.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}
