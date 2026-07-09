@@ -15,8 +15,10 @@ out/
 .env.*
 !.env.example
 
-# Runtime data (user uploads, generated files)
+# Runtime data (user uploads, generated files) — also the per-service
+# storage dirs DiskBlobStore creates when a service runs from its own cwd
 storage/**
+**/storage/**
 !storage/**/.gitkeep
 logs/
 *.log

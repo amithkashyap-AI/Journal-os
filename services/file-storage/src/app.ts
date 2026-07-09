@@ -35,10 +35,9 @@ const ALLOWED_MIME_TYPES = new Set([
   "text/plain",
 ]);
 
-// Coarse-grained for now: manuscript files are visible to their owner and to
-// anyone with an editorial/review role. Per-assignment scoping would require a
-// cross-service check and can be layered on later.
-const READER_ROLES: UserRole[] = ["EDITOR", "ADMIN", "REVIEWER"];
+// Editorial staff see every manuscript; reviewers only the ones on
+// submissions they are assigned to (checked per request via the store).
+const STAFF_ROLES: UserRole[] = ["EDITOR", "ADMIN"];
 
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
@@ -108,11 +107,16 @@ export function buildApp(options: AppOptions): FastifyInstance {
     { onRequest: [app.authenticate] },
     async (request, reply) => {
       const file = await files.findById(request.params.id);
+      if (!file) {
+        return reply.code(404).send({ error: "NOT_FOUND" });
+      }
       const canRead =
-        file !== null &&
-        (file.ownerId === request.user.sub ||
-          request.user.roles.some((role) => READER_ROLES.includes(role)));
-      if (!file || !canRead) {
+        file.ownerId === request.user.sub ||
+        request.user.roles.some((role) => STAFF_ROLES.includes(role)) ||
+        (request.user.roles.includes("REVIEWER") &&
+          (await files.isAssignedReviewer(file.id, request.user.sub)));
+      if (!canRead) {
+        // 404, not 403: don't reveal that the file exists.
         return reply.code(404).send({ error: "NOT_FOUND" });
       }
 

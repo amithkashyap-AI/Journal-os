@@ -13,11 +13,13 @@ const PDF_BYTES = Buffer.from("%PDF-1.4 fake manuscript body for testing");
 
 describe("file-storage service", () => {
   let app: FastifyInstance;
+  let store: InMemoryFileStore;
 
   beforeEach(async () => {
     const dir = await mkdtemp(join(tmpdir(), "rpos-files-"));
+    store = new InMemoryFileStore();
     app = buildApp({
-      files: new InMemoryFileStore(),
+      files: store,
       blobs: new DiskBlobStore(dir),
       jwtSecret: "test-secret-at-least-16",
       maxFileSize: 1024,
@@ -68,7 +70,7 @@ describe("file-storage service", () => {
     expect(res.headers["content-disposition"]).toContain("manuscript.pdf");
   });
 
-  it("allows editors and reviewers to download, hides from other authors", async () => {
+  it("allows editorial staff to download, hides from other authors", async () => {
     const { id } = (await upload()).json().file;
 
     const editor = await app.inject({
@@ -78,12 +80,12 @@ describe("file-storage service", () => {
     });
     expect(editor.statusCode).toBe(200);
 
-    const reviewer = await app.inject({
+    const admin = await app.inject({
       method: "GET",
       url: `/v1/files/${id}`,
-      headers: authHeader("reviewer-1", ["REVIEWER"]),
+      headers: authHeader("admin-1", ["ADMIN"]),
     });
-    expect(reviewer.statusCode).toBe(200);
+    expect(admin.statusCode).toBe(200);
 
     const stranger = await app.inject({
       method: "GET",
@@ -91,6 +93,34 @@ describe("file-storage service", () => {
       headers: authHeader("author-2", ["AUTHOR"]),
     });
     expect(stranger.statusCode).toBe(404);
+  });
+
+  it("scopes reviewer downloads to assigned submissions", async () => {
+    const { id } = (await upload()).json().file;
+
+    const unassigned = await app.inject({
+      method: "GET",
+      url: `/v1/files/${id}`,
+      headers: authHeader("reviewer-1", ["REVIEWER"]),
+    });
+    expect(unassigned.statusCode).toBe(404);
+
+    store.grantReviewer(id, "reviewer-1");
+    const assigned = await app.inject({
+      method: "GET",
+      url: `/v1/files/${id}`,
+      headers: authHeader("reviewer-1", ["REVIEWER"]),
+    });
+    expect(assigned.statusCode).toBe(200);
+    expect(assigned.rawPayload.equals(PDF_BYTES)).toBe(true);
+
+    // The grant is per reviewer, not for the role.
+    const otherReviewer = await app.inject({
+      method: "GET",
+      url: `/v1/files/${id}`,
+      headers: authHeader("reviewer-2", ["REVIEWER"]),
+    });
+    expect(otherReviewer.statusCode).toBe(404);
   });
 
   it("rejects unsupported file types", async () => {
