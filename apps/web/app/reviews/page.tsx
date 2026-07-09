@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Calendar, Inbox } from "lucide-react";
 import type { PublicUser } from "@rpos/types";
 import { RecommendationBadge } from "../../components/RecommendationBadge";
 import { Card, CardContent } from "../../components/ui/card";
 import { apiFetch, AUTH_API, getToken, REVIEW_API, SUBMISSION_API } from "../../lib/api";
 import type { ReviewDto, SubmissionDto } from "../../lib/dto";
+import { PageHeader, EmptyState } from "@rpos/ui";
 
 export default async function ReviewsPage() {
   const token = await getToken();
@@ -31,46 +32,61 @@ export default async function ReviewsPage() {
   const submissionsById = new Map(submissionEntries);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {isStaff ? "All reviews" : "My review assignments"}
-      </h1>
-      <Card>
-        <CardContent className="pt-6">
-          {reviews.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10 text-muted-foreground">
-              <ClipboardList className="size-8" />
-              <p className="text-sm">No review assignments yet.</p>
-            </div>
-          ) : (
-            <ul className="divide-y">
+    <div className="space-y-6 animate-in">
+      {/* Header */}
+      <PageHeader
+        title={isStaff ? "All Reviews" : "Review Workspace"}
+        description={isStaff ? "Overview of active and completed reviews across all submissions" : "Manage your peer review assignments"}
+      />
+
+      {reviews.length === 0 ? (
+        <EmptyState
+          icon={<ClipboardList className="size-6" />}
+          title="No review assignments"
+          description="When editors assign manuscripts to you for peer review, they will appear here."
+        />
+      ) : (
+        <Card className="border-border/40 shadow-sm bg-card/60">
+          <CardContent className="pt-6">
+            <ul className="divide-y divide-border/40">
               {reviews.map((review) => {
                 const submission = submissionsById.get(review.submissionId);
+                const isOverdue = review.dueAt && new Date(review.dueAt) < new Date() && !review.submittedAt;
+
                 return (
                   <li
                     key={review.id}
-                    className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0"
+                    className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 space-y-1">
                       <Link
                         href={`/reviews/${review.id}`}
-                        className="block truncate font-medium hover:underline"
+                        className="block truncate font-medium hover:underline text-foreground hover:text-primary transition-colors text-sm"
                       >
-                        {submission?.title ?? review.submissionId}
+                        {submission?.title ?? `Submission ID: ${review.submissionId}`}
                       </Link>
-                      <p className="text-sm text-muted-foreground">
-                        Assigned {new Date(review.createdAt).toLocaleDateString()}
-                        {review.dueAt && ` · Due ${new Date(review.dueAt).toLocaleDateString()}`}
-                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Calendar className="size-3.5" />
+                        <span>Assigned {new Date(review.createdAt).toLocaleDateString()}</span>
+                        {review.dueAt && (
+                          <>
+                            <span>·</span>
+                            <span className={isOverdue ? "text-destructive font-medium" : ""}>
+                              Due {new Date(review.dueAt).toLocaleDateString()}
+                              {isOverdue && " (Overdue)"}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <RecommendationBadge recommendation={review.recommendation} />
                   </li>
                 );
               })}
             </ul>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

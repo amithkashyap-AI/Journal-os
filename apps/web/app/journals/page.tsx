@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { BookOpen } from "lucide-react";
+import { BookOpen, HelpCircle, Layers } from "lucide-react";
 import type { PublicUser } from "@rpos/types";
 import { JournalForm, PublisherForm } from "../../components/forms/journal-forms";
 import {
@@ -11,6 +11,7 @@ import {
 } from "../../components/ui/card";
 import { apiFetch, AUTH_API, getToken } from "../../lib/api";
 import { fetchJournals, fetchPublishers } from "../../lib/catalog";
+import { PageHeader, EmptyState } from "@rpos/ui";
 
 export default async function JournalsPage() {
   const token = await getToken();
@@ -24,59 +25,86 @@ export default async function JournalsPage() {
   const [journals, publishers] = await Promise.all([fetchJournals(), fetchPublishers()]);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Journals</h1>
+    <div className="space-y-8 animate-in">
+      {/* Header */}
+      <PageHeader
+        title="Journal Catalog"
+        description="Browse all academic journals and publisher configurations"
+      />
 
-      <Card>
-        <CardContent className="pt-6">
-          {journals.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10 text-muted-foreground">
-              <BookOpen className="size-8" />
-              <p className="text-sm">No journals yet.</p>
-            </div>
-          ) : (
-            <ul className="divide-y">
-              {journals.map((journal) => (
-                <li key={journal.id} className="py-3.5 first:pt-0 last:pb-0">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="font-medium">{journal.title}</span>
-                    {journal.issn && (
-                      <span className="text-xs text-muted-foreground">ISSN {journal.issn}</span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {journal.publisherName} · /{journal.slug}
-                  </p>
-                  {journal.description && (
-                    <p className="mt-1 text-sm text-muted-foreground">{journal.description}</p>
+      {journals.length === 0 ? (
+        <EmptyState
+          icon={<BookOpen className="size-6" />}
+          title="No journals in catalog"
+          description="When journals are registered by publishers, they will appear here."
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {journals.map((journal) => (
+            <Card key={journal.id} className="border-border/40 shadow-sm hover:shadow-md transition-shadow bg-card/60">
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between gap-4">
+                  <CardTitle className="text-base font-semibold leading-tight text-foreground">
+                    {journal.title}
+                  </CardTitle>
+                  {journal.issn && (
+                    <span className="shrink-0 rounded-full bg-secondary/80 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border/40">
+                      ISSN {journal.issn}
+                    </span>
                   )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+                </div>
+                <CardDescription className="text-xs">
+                  {journal.publisherName} · /{journal.slug}
+                </CardDescription>
+              </CardHeader>
+              {journal.description && (
+                <CardContent className="pt-2">
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                    {journal.description}
+                  </p>
+                </CardContent>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
 
       {isManager && (
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>New journal</CardTitle>
-              <CardDescription>The URL slug is generated from the title</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <JournalForm publishers={publishers} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>New publisher</CardTitle>
-              <CardDescription>Journals are grouped under a publisher</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PublisherForm />
-            </CardContent>
-          </Card>
+        <div className="space-y-6 pt-4 border-t border-border/40">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
+              Catalog Management
+            </h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Register new journals and publishers to expand the RPOS repository catalog.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="border-border/40 shadow-sm bg-card/60">
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold">New journal</CardTitle>
+                <CardDescription className="text-xs">
+                  The URL slug is automatically generated from the journal title
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <JournalForm publishers={publishers} />
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/40 shadow-sm bg-card/60">
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold">New publisher</CardTitle>
+                <CardDescription className="text-xs">
+                  Journals are grouped and managed under a publisher entity
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PublisherForm />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
     </div>

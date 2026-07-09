@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { BookOpenText, ClipboardList, FilePlus, LayoutDashboard, LogOut } from "lucide-react";
+import { BookOpenText, ClipboardList, FilePlus, LayoutDashboard } from "lucide-react";
 import "../styles/globals.css";
-import { getToken } from "../lib/api";
+import { apiFetch, AUTH_API, getToken } from "../lib/api";
 import { logout } from "../lib/auth-actions";
-import { Button } from "../components/ui/button";
 import { QueryProvider } from "../providers/query-provider";
+import { DashboardShell, NavLink, SidebarSection, UserMenu } from "@rpos/ui";
+import type { PublicUser } from "@rpos/types";
+import { SidebarNav } from "../components/SidebarNav";
+
+import { ThemeProvider } from "../components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "Research Publishing OS",
@@ -14,54 +17,89 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const token = await getToken();
+  let user: PublicUser | null = null;
+
+  if (token) {
+    try {
+      const meRes = await apiFetch(AUTH_API, "/v1/auth/me");
+      if (meRes.ok) {
+        const data = await meRes.json() as { user: PublicUser };
+        user = data.user;
+      }
+    } catch (e) {
+      console.error("Failed to fetch user in layout:", e);
+    }
+  }
+
+  const sidebarContent = (
+    <div className="space-y-4">
+      {user?.roles.includes("ADMIN") ? (
+        <SidebarSection title="Superadmin System">
+          <SidebarNav user={user} />
+        </SidebarSection>
+      ) : (
+        <SidebarSection title="Workspace">
+          <NavLink
+            href="/dashboard"
+            label="Dashboard"
+            icon={<LayoutDashboard className="size-4" />}
+            exact
+          />
+          <NavLink
+            href="/submissions/new"
+            label="New Submission"
+            icon={<FilePlus className="size-4" />}
+          />
+          <NavLink
+            href="/reviews"
+            label="Reviews"
+            icon={<ClipboardList className="size-4" />}
+          />
+          <NavLink
+            href="/journals"
+            label="Journals"
+            icon={<BookOpenText className="size-4" />}
+          />
+        </SidebarSection>
+      )}
+    </div>
+  );
+
+  const sidebarFooter = user ? (
+    <UserMenu
+      name={user.name}
+      email={user.email}
+      role={user.roles.join(", ")}
+      logoutAction={logout}
+    />
+  ) : undefined;
 
   return (
-    <html lang="en">
-      <body>
-        <QueryProvider>
-          <header className="sticky top-0 z-10 border-b bg-card">
-            <nav className="mx-auto flex h-14 max-w-4xl items-center gap-6 px-6">
-              <Link href="/" className="flex items-center gap-2 font-semibold">
-                <BookOpenText className="size-5 text-primary" />
-                Research Publishing OS
-              </Link>
-              {token && (
-                <>
-                  <Link
-                    href="/dashboard"
-                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    <LayoutDashboard className="size-4" /> Dashboard
-                  </Link>
-                  <Link
-                    href="/submissions/new"
-                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    <FilePlus className="size-4" /> New Submission
-                  </Link>
-                  <Link
-                    href="/reviews"
-                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    <ClipboardList className="size-4" /> Reviews
-                  </Link>
-                  <Link
-                    href="/journals"
-                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    <BookOpenText className="size-4" /> Journals
-                  </Link>
-                  <form action={logout} className="ml-auto">
-                    <Button type="submit" variant="ghost" size="sm">
-                      <LogOut /> Sign out
-                    </Button>
-                  </form>
-                </>
-              )}
-            </nav>
-          </header>
-          <main className="mx-auto max-w-4xl px-6 py-8">{children}</main>
-        </QueryProvider>
+    <html lang="en" className="scroll-smooth dark theme-slate">
+      <body className="bg-mesh min-h-screen text-foreground antialiased transition-colors duration-500">
+        <ThemeProvider>
+          <QueryProvider>
+            {token && user ? (
+              <DashboardShell
+                sidebarContent={sidebarContent}
+                sidebarFooter={sidebarFooter}
+                topBarContent={
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                      Research Publishing OS
+                    </span>
+                  </div>
+                }
+              >
+                {children}
+              </DashboardShell>
+            ) : (
+              <main className="flex min-h-screen flex-col items-center justify-center p-6">
+                {children}
+              </main>
+            )}
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

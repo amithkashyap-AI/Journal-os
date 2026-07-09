@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { FileDown } from "lucide-react";
+import { FileDown, Calendar, History, ClipboardList, PenTool, ExternalLink } from "lucide-react";
 import type { PublicUser } from "@rpos/types";
 import type { SubmissionAction } from "@rpos/workflow-engine";
 import { RecommendationBadge } from "../../../components/RecommendationBadge";
@@ -17,6 +17,7 @@ import {
 import { apiFetch, AUTH_API, getToken, REVIEW_API, SUBMISSION_API } from "../../../lib/api";
 import type { ReviewDto, SubmissionDto } from "../../../lib/dto";
 import { performSubmissionAction } from "../../../lib/submission-actions";
+import { PageHeader, Section, Timeline } from "@rpos/ui";
 
 const ACTION_LABELS: Record<SubmissionAction, string> = {
   submit: "Submit for review",
@@ -73,124 +74,220 @@ export default async function SubmissionPage({
     isOwner && ["DRAFT", "REVISIONS_REQUESTED"].includes(submission.status);
   const manuscriptFileId = submission.manuscriptUrl?.split("/").pop();
 
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <CardTitle className="text-xl leading-snug">{submission.title}</CardTitle>
-            <StatusBadge status={submission.status} />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Created {new Date(submission.createdAt).toLocaleString()}
-            {submission.submittedAt &&
-              ` · Submitted ${new Date(submission.submittedAt).toLocaleString()}`}
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Abstract
-            </h2>
-            <p className="leading-relaxed">{submission.abstract}</p>
-          </div>
-          {submission.keywords.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {submission.keywords.map((keyword) => (
-                <span
-                  key={keyword}
-                  className="rounded-full border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground"
-                >
-                  {keyword}
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="space-y-2 border-t pt-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Manuscript
-            </h2>
-            {manuscriptFileId ? (
-              <a
-                href={`/files/${manuscriptFileId}`}
-                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-              >
-                <FileDown className="size-4" /> Download manuscript
-              </a>
-            ) : (
-              <p className="text-sm text-muted-foreground">No manuscript uploaded yet.</p>
-            )}
-            {canEditManuscript && (
-              <ManuscriptUpload
-                submissionId={submission.id}
-                hasManuscript={Boolean(manuscriptFileId)}
-              />
-            )}
-          </div>
-          {allowedActions.length > 0 && (
-            <div className="flex flex-wrap gap-2 border-t pt-4">
-              {allowedActions.map((action) => (
-                <form key={action} action={performSubmissionAction}>
-                  <input type="hidden" name="id" value={submission.id} />
-                  <input type="hidden" name="action" value={action} />
-                  <Button
-                    type="submit"
-                    variant={DESTRUCTIVE_ACTIONS.includes(action) ? "outline" : "default"}
-                  >
-                    {ACTION_LABELS[action]}
-                  </Button>
-                </form>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+  // Create timeline events dynamically
+  interface TimelineEvent {
+    id: string;
+    title: string;
+    description: string;
+    timestamp: string | Date;
+    variant: "default" | "primary" | "success" | "warning" | "destructive";
+    icon: React.ReactNode;
+  }
 
-      {isStaff && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Peer review</CardTitle>
-            <CardDescription>
-              {reviews.length === 0
-                ? "No reviewers assigned yet."
-                : `${reviews.filter((review) => review.submittedAt).length} of ${reviews.length} reviews filed.`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {reviews.length > 0 && (
-              <ul className="divide-y">
-                {reviews.map((review) => (
-                  <li key={review.id} className="space-y-1 py-3 first:pt-0">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="font-medium">{reviewerName(review.reviewerId)}</span>
-                      <RecommendationBadge recommendation={review.recommendation} />
-                    </div>
-                    {review.comments && (
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {review.comments}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      Assigned {new Date(review.createdAt).toLocaleDateString()}
-                      {review.submittedAt &&
-                        ` · Filed ${new Date(review.submittedAt).toLocaleDateString()}`}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {canAssign ? (
-              <div className="border-t pt-4">
-                <AssignReviewerForm submissionId={submission.id} reviewers={reviewers} />
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Reviewers can only be assigned while the submission is submitted or under review.
+  const timelineEvents: TimelineEvent[] = [
+    {
+      id: "created",
+      title: "Submission Draft Created",
+      description: "Manuscript draft initialized by author.",
+      timestamp: submission.createdAt,
+      variant: "primary",
+      icon: <PenTool className="size-3.5" />,
+    },
+  ];
+
+  if (submission.submittedAt) {
+    timelineEvents.push({
+      id: "submitted",
+      title: "Submitted for Review",
+      description: "Manuscript formally submitted by author.",
+      timestamp: submission.submittedAt,
+      variant: "success",
+      icon: <ClipboardList className="size-3.5" />,
+    });
+  }
+
+  return (
+    <div className="space-y-8 animate-in">
+      {/* Header */}
+      <PageHeader
+        title={submission.title}
+        badge={<StatusBadge status={submission.status} />}
+        description={`Manuscript ID: ${submission.id}`}
+      />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Left Side: Overview & Manuscript Details */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border-border/40 shadow-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">Abstract</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <p className="text-sm leading-relaxed text-foreground/90 font-sans whitespace-pre-wrap">
+                {submission.abstract}
               </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+
+              {submission.keywords.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Keywords
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {submission.keywords.map((keyword) => (
+                      <span
+                        key={keyword}
+                        className="rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1 text-xs text-foreground/80"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Manuscript Upload/Download Section */}
+          <Card className="border-border/40 shadow-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">Manuscript Source</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {manuscriptFileId ? (
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/20">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <FileDown className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Manuscript Document</p>
+                      <p className="text-xs text-muted-foreground">Uploaded format</p>
+                    </div>
+                  </div>
+                  <a
+                    href={`/files/${manuscriptFileId}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3.5 py-2 text-xs font-semibold text-foreground hover:bg-secondary/80 border border-border transition-colors"
+                  >
+                    Download
+                  </a>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No manuscript file uploaded yet.</p>
+              )}
+
+              {canEditManuscript && (
+                <div className="pt-2">
+                  <ManuscriptUpload
+                    submissionId={submission.id}
+                    hasManuscript={Boolean(manuscriptFileId)}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Workflow Action Buttons */}
+          {allowedActions.length > 0 && (
+            <Card className="border-border/40 shadow-sm bg-gradient-to-r from-primary/5 to-transparent">
+              <CardContent className="pt-6">
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-foreground">Available Actions</p>
+                  <div className="flex flex-wrap gap-2">
+                    {allowedActions.map((action) => (
+                      <form key={action} action={performSubmissionAction}>
+                        <input type="hidden" name="id" value={submission.id} />
+                        <input type="hidden" name="action" value={action} />
+                        <Button
+                          type="submit"
+                          variant={DESTRUCTIVE_ACTIONS.includes(action) ? "outline" : "default"}
+                          className={
+                            DESTRUCTIVE_ACTIONS.includes(action)
+                              ? "hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+                              : "shadow-sm shadow-primary/10 hover:shadow-md"
+                          }
+                        >
+                          {ACTION_LABELS[action]}
+                        </Button>
+                      </form>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Peer Review Panel (Staff Only) */}
+          {isStaff && (
+            <Card className="border-border/40 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold">Peer Review Assignments</CardTitle>
+                <CardDescription>
+                  {reviews.length === 0
+                    ? "No reviewers assigned yet."
+                    : `${reviews.filter((review) => review.submittedAt).length} of ${reviews.length} reviews filed.`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {reviews.length > 0 && (
+                  <ul className="divide-y divide-border/40">
+                    {reviews.map((review) => (
+                      <li key={review.id} className="space-y-2 py-4 first:pt-0 last:pb-0">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="font-medium text-sm">{reviewerName(review.reviewerId)}</span>
+                          <RecommendationBadge recommendation={review.recommendation} />
+                        </div>
+                        {review.comments && (
+                          <div className="rounded-lg bg-muted/40 p-3 border border-border/20">
+                            <p className="text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                              {review.comments}
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <Calendar className="size-3" />
+                          <span>Assigned {new Date(review.createdAt).toLocaleDateString()}</span>
+                          {review.submittedAt && (
+                            <>
+                              <span className="mx-1.5">·</span>
+                              <span>Filed {new Date(review.submittedAt).toLocaleDateString()}</span>
+                            </>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {canAssign ? (
+                  <div className="border-t border-border/40 pt-4">
+                    <p className="text-sm font-medium mb-3">Assign New Reviewer</p>
+                    <AssignReviewerForm submissionId={submission.id} reviewers={reviewers} />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground bg-muted/20 border border-border/30 rounded-lg p-3">
+                    Reviewers can only be assigned while the submission is submitted or under review.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Right Side: Timeline & History */}
+        <div className="space-y-6">
+          <Card className="border-border/40 shadow-sm bg-card/60">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <History className="size-4 text-muted-foreground" />
+                History
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Timeline items={timelineEvents} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

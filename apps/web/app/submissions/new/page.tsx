@@ -7,8 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from "../../../components/ui/card";
-import { getToken } from "../../../lib/api";
-import { fetchJournals } from "../../../lib/catalog";
+import { getToken } from "../../../../../apps/web/lib/api";
+import { fetchJournals } from "../../../../../apps/web/lib/catalog";
+import { PageHeader } from "@rpos/ui";
 
 export default async function NewSubmissionPage() {
   const token = await getToken();
@@ -17,20 +18,29 @@ export default async function NewSubmissionPage() {
   const journals = await fetchJournals();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl">New submission</CardTitle>
-        <CardDescription>Drafts stay private until you submit them for review</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <SubmissionForm
-          journals={journals.map(({ id, title, publisherName }) => ({
-            id,
-            title,
-            publisherName,
-          }))}
-        />
-      </CardContent>
-    </Card>
+    <div className="space-y-6 animate-in">
+      <PageHeader
+        title="New Submission"
+        description="Drafts remain private and editable until you formally submit them for peer review."
+      />
+
+      <Card className="border-border/40 shadow-sm bg-card/60">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold">Manuscript Details</CardTitle>
+          <CardDescription className="text-xs">
+            Provide the required academic metadata for your submission
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SubmissionForm
+            journals={journals.map(({ id, title, publisherName }) => ({
+              id,
+              title,
+              publisherName,
+            }))}
+          />
+        </CardContent>
+      </Card>
+    </div>
   );
 }
