@@ -5,6 +5,7 @@ export interface StoredPublisher {
   name: string;
   slug: string;
   website: string | null;
+  ownerId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,6 +43,7 @@ export interface CreatePublisherData {
   name: string;
   slug: string;
   website?: string;
+  ownerId?: string;
 }
 
 export interface JournalStore {
@@ -51,6 +53,8 @@ export interface JournalStore {
   createJournal(data: CreateJournalData): Promise<StoredJournal>;
   updateJournal(id: string, patch: UpdateJournalData): Promise<StoredJournal>;
   listPublishers(): Promise<StoredPublisher[]>;
+  /** Publishers owned by the given user — for the publisher portal's "my organizations" view. */
+  listPublishersByOwner(ownerId: string): Promise<StoredPublisher[]>;
   findPublisherById(id: string): Promise<StoredPublisher | null>;
   findPublisherBySlug(slug: string): Promise<StoredPublisher | null>;
   createPublisher(data: CreatePublisherData): Promise<StoredPublisher>;
@@ -108,6 +112,10 @@ export class InMemoryJournalStore implements JournalStore {
     return [...this.publishers.values()];
   }
 
+  async listPublishersByOwner(ownerId: string): Promise<StoredPublisher[]> {
+    return [...this.publishers.values()].filter((publisher) => publisher.ownerId === ownerId);
+  }
+
   async findPublisherById(id: string): Promise<StoredPublisher | null> {
     return this.publishers.get(id) ?? null;
   }
@@ -123,6 +131,7 @@ export class InMemoryJournalStore implements JournalStore {
       name: data.name,
       slug: data.slug,
       website: data.website ?? null,
+      ownerId: data.ownerId ?? null,
       createdAt: now,
       updatedAt: now,
     };

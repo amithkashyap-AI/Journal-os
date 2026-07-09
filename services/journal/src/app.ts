@@ -37,6 +37,10 @@ function isManager(user: JwtPayload): boolean {
   return hasAnyRole(user, "ADMIN", "PUBLISHER");
 }
 
+function isAdmin(user: JwtPayload): boolean {
+  return hasAnyRole(user, "ADMIN");
+}
+
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
   const { journals } = options;
@@ -88,6 +92,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!publisher) {
       return reply.code(404).send({ error: "PUBLISHER_NOT_FOUND" });
     }
+    if (!isAdmin(request.user) && publisher.ownerId !== request.user.sub) {
+      return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+    }
 
     const slug = parsed.data.slug ?? slugify(parsed.data.title);
     if (await journals.findJournalBySlug(slug)) {
@@ -117,6 +124,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
       const existing = await journals.findJournalById(request.params.id);
       if (!existing) return reply.code(404).send({ error: "NOT_FOUND" });
 
+      if (!isAdmin(request.user)) {
+        const publisher = await journals.findPublisherById(existing.publisherId);
+        if (!publisher || publisher.ownerId !== request.user.sub) {
+          return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+        }
+      }
+
       const journal = await journals.updateJournal(existing.id, parsed.data);
       return reply.send({ journal });
     },
@@ -124,6 +138,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   app.get("/v1/publishers", { onRequest: [app.authenticate] }, async (_request, reply) => {
     return reply.send({ publishers: await journals.listPublishers() });
+  });
+
+  // A user's own publisher organizations — for the publisher portal's "my organizations" view.
+  app.get("/v1/publishers/mine", { onRequest: [app.authenticate] }, async (request, reply) => {
+    return reply.send({ publishers: await journals.listPublishersByOwner(request.user.sub) });
   });
 
   app.post("/v1/publishers", { onRequest: [app.authenticate] }, async (request, reply) => {
@@ -144,7 +163,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(409).send({ error: "SLUG_TAKEN" });
     }
 
-    const publisher = await journals.createPublisher({ ...parsed.data, slug });
+    // Admin-created publishers are unowned catalog entries; a publisher
+    // creating their own organization becomes its owner.
+    const ownerId = isAdmin(request.user) ? undefined : request.user.sub;
+    const publisher = await journals.createPublisher({ ...parsed.data, slug, ownerId });
     return reply.code(201).send({ publisher });
   });
 

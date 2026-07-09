@@ -51,9 +51,10 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  submissions   Submission[]
-  reviews       Review[]
-  notifications Notification[]
+  submissions     Submission[]
+  reviews         Review[]
+  notifications   Notification[]
+  ownedPublishers Publisher[]
 
   @@map("users")
 }
@@ -63,13 +64,16 @@ model Publisher {
   name      String
   slug      String   @unique
   website   String?
+  ownerId   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  owner       User?        @relation(fields: [ownerId], references: [id])
   journals    Journal[]
   conferences Conference[]
   books       Book[]
 
+  @@index([ownerId])
   @@map("publishers")
 }
 

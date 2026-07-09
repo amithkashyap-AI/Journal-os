@@ -112,14 +112,14 @@ describe("journal service", () => {
     expect(res.statusCode).toBe(401);
   });
 
-  it("updates journal metadata as a manager", async () => {
+  it("lets an admin update journal metadata regardless of ownership", async () => {
     const publisher = (await createPublisher()).json().publisher;
     const journal = (await createJournal(publisher.id)).json().journal;
 
     const res = await app.inject({
       method: "PATCH",
       url: `/v1/journals/${journal.id}`,
-      headers: authHeader("pub-1", ["PUBLISHER"]),
+      headers: authHeader("admin-1", ["ADMIN"]),
       payload: { description: "A journal for rigorous testing research.", issn: "1234-567X" },
     });
     expect(res.statusCode).toBe(200);
@@ -127,6 +127,64 @@ describe("journal service", () => {
       description: "A journal for rigorous testing research.",
       issn: "1234-567X",
     });
+  });
+
+  it("lets a publisher manage journals under their own organization, but not another's", async () => {
+    const own = (
+      await app.inject({
+        method: "POST",
+        url: "/v1/publishers",
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { name: "Pub One Press" },
+      })
+    ).json().publisher;
+    expect(own.ownerId).toBe("pub-1");
+
+    const journal = (await createJournal(own.id)).json().journal;
+
+    const editOwn = await app.inject({
+      method: "PATCH",
+      url: `/v1/journals/${journal.id}`,
+      headers: authHeader("pub-1", ["PUBLISHER"]),
+      payload: { description: "Updated by the owning publisher." },
+    });
+    expect(editOwn.statusCode).toBe(200);
+
+    const editOther = await app.inject({
+      method: "PATCH",
+      url: `/v1/journals/${journal.id}`,
+      headers: authHeader("pub-2", ["PUBLISHER"]),
+      payload: { description: "Should not be allowed." },
+    });
+    expect(editOther.statusCode).toBe(403);
+    expect(editOther.json().error).toBe("NOT_YOUR_PUBLISHER");
+
+    const createUnderSomeoneElses = await app.inject({
+      method: "POST",
+      url: "/v1/journals",
+      headers: authHeader("pub-2", ["PUBLISHER"]),
+      payload: { publisherId: own.id, title: "Interloper Journal" },
+    });
+    expect(createUnderSomeoneElses.statusCode).toBe(403);
+  });
+
+  it("scopes /v1/publishers/mine to the caller's own organizations", async () => {
+    await createPublisher("Admin-Owned Press");
+    await app.inject({
+      method: "POST",
+      url: "/v1/publishers",
+      headers: authHeader("pub-1", ["PUBLISHER"]),
+      payload: { name: "Pub One Press" },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/v1/publishers/mine",
+      headers: authHeader("pub-1", ["PUBLISHER"]),
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().publishers).toHaveLength(1);
+    expect(res.json().publishers[0]).toMatchObject({ name: "Pub One Press", ownerId: "pub-1" });
   });
 
   it("rejects invalid ISSNs", async () => {

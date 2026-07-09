@@ -51,6 +51,10 @@ export class PrismaJournalStore implements JournalStore {
     return this.db.publisher.findMany({ orderBy: { name: "asc" } });
   }
 
+  async listPublishersByOwner(ownerId: string): Promise<StoredPublisher[]> {
+    return this.db.publisher.findMany({ where: { ownerId }, orderBy: { name: "asc" } });
+  }
+
   async findPublisherById(id: string): Promise<StoredPublisher | null> {
     return this.db.publisher.findUnique({ where: { id } });
   }
