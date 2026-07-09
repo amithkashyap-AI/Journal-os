@@ -16,6 +16,7 @@ export interface PublisherDto {
   name: string;
   slug: string;
   website: string | null;
+  ownerId: string | null;
 }
 
 export async function fetchJournals(): Promise<JournalDto[]> {
@@ -26,6 +27,12 @@ export async function fetchJournals(): Promise<JournalDto[]> {
 
 export async function fetchPublishers(): Promise<PublisherDto[]> {
   const res = await apiFetch(JOURNAL_API, "/v1/publishers");
+  if (!res.ok) return [];
+  return ((await res.json()) as { publishers: PublisherDto[] }).publishers;
+}
+
+export async function fetchMyPublishers(): Promise<PublisherDto[]> {
+  const res = await apiFetch(JOURNAL_API, "/v1/publishers/mine");
   if (!res.ok) return [];
   return ((await res.json()) as { publishers: PublisherDto[] }).publishers;
 }

@@ -35,7 +35,7 @@ export function PublisherForm() {
       name: values.name,
       website: values.website || undefined,
     });
-    if (result?.error) setServerError(result.error);
+    if ("error" in result) setServerError(result.error);
     else reset();
   }
 

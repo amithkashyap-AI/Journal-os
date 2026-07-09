@@ -18,21 +18,19 @@ pnpm build                       # turbo, all packages/services/apps
 # same for submission :4002, review :4003, journal :4005, file-storage :4006
 # notification :4004 optional (notifier is fire-and-forget)
 # apps (production):
-(cd apps/web && ./node_modules/.bin/next start -p 3000 &)
-(cd apps/landing && ./node_modules/.bin/next start -p 3001 &)
-(cd apps/author && ./node_modules/.bin/next start -p 3002 &)
-(cd apps/reviewer && ./node_modules/.bin/next start -p 3003 &)
+(cd apps/web && ./node_modules/.bin/next start -p 3000 &)      # single consolidated app, all 5 roles
+(cd apps/landing && ./node_modules/.bin/next start -p 3001 &)  # marketing site only
 ```
 Services prefer their env port but fall back via `findFreePort()` — check the log line for the actual port if something else is bound.
 
 ## Drive
-Next pages are SSR; you can drive them with curl by injecting the session cookie directly:
+`apps/web` is the single entry point for every role — login redirects by role priority (ADMIN/EDITOR → `/dashboard`, PUBLISHER → `/publisher`, REVIEWER → `/reviews`, else → `/dashboard`), and the sidebar composes its links from the user's actual role set (see `apps/web/components/SidebarNav.tsx`). Next pages are SSR; drive them with curl by injecting the session cookie directly:
 ```bash
 TOK=$(curl -s http://localhost:4001/v1/auth/login -H 'content-type: application/json' \
   -d '{"email":"author@rpos.dev","password":"password123"}' | node -p "JSON.parse(require('fs').readFileSync(0)).accessToken")
-curl -s http://localhost:3002/dashboard -H "Cookie: rpos_token=$TOK"   # renders full HTML
+curl -s http://localhost:3000/dashboard -H "Cookie: rpos_token=$TOK"   # renders full HTML
 ```
-Flows worth driving: author portal login → dashboard → /submissions/new (journal options populated); reviewer portal dashboard; web /dashboard/admin as admin (307 → /dashboard for non-admins); unauthenticated pages 307 → /login.
+Flows worth driving: real login (not just cookie injection) to confirm the role-based redirect; `/dashboard` (author/staff view), `/reviews` (reviewer), `/publisher` (publisher org + ready-to-publish), `/dashboard/admin` (307 → `/dashboard` for non-admins); unauthenticated pages 307 → `/login`.
 
 ## Gotchas
 - **Stale dev servers**: previous agent sessions leave `next dev` processes holding 3000–3003 and corrupting `.next` (prod `next start` then 500s with `Cannot find module './vendor-chunks/...'`). Check `lsof -nP -iTCP:3000 -sTCP:LISTEN`, kill stale ones, `rm -rf apps/*/.next`, rebuild.

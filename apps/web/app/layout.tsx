@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { BookOpenText, ClipboardList, FilePlus, LayoutDashboard } from "lucide-react";
 import "../styles/globals.css";
 import { apiFetch, AUTH_API, getToken } from "../lib/api";
 import { logout } from "../lib/auth-actions";
 import { QueryProvider } from "../providers/query-provider";
-import { DashboardShell, NavLink, SidebarSection, UserMenu } from "@rpos/ui";
+import { DashboardShell, UserMenu } from "@rpos/ui";
 import type { PublicUser } from "@rpos/types";
 import { NotificationBell } from "../components/NotificationBell";
 import { SidebarNav } from "../components/SidebarNav";
@@ -34,33 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const sidebarContent = (
     <div className="space-y-4">
-      {user?.roles.includes("ADMIN") ? (
-        <SidebarNav />
-      ) : (
-        <SidebarSection title="Workspace">
-          <NavLink
-            href="/dashboard"
-            label="Dashboard"
-            icon={<LayoutDashboard className="size-4" />}
-            exact
-          />
-          <NavLink
-            href="/submissions/new"
-            label="New Submission"
-            icon={<FilePlus className="size-4" />}
-          />
-          <NavLink
-            href="/reviews"
-            label="Reviews"
-            icon={<ClipboardList className="size-4" />}
-          />
-          <NavLink
-            href="/journals"
-            label="Journals"
-            icon={<BookOpenText className="size-4" />}
-          />
-        </SidebarSection>
-      )}
+      <SidebarNav roles={user?.roles ?? []} />
     </div>
   );
 

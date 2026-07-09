@@ -31,7 +31,12 @@ async function setSession(token: string): Promise<void> {
   });
 }
 
-async function loginRequest(email: string, password: string): Promise<string | null> {
+interface LoginResult {
+  accessToken: string;
+  user: PublicUser;
+}
+
+async function loginRequest(email: string, password: string): Promise<LoginResult | null> {
   const res = await fetch(`${AUTH_API}/v1/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -39,19 +44,26 @@ async function loginRequest(email: string, password: string): Promise<string | n
     cache: "no-store",
   });
   if (!res.ok) return null;
-  const body = (await res.json()) as { accessToken: string };
-  return body.accessToken;
+  return (await res.json()) as LoginResult;
+}
+
+/** Where a freshly logged-in user lands, by role priority. */
+function homeRouteFor(roles: UserRole[]): string {
+  if (roles.includes("ADMIN") || roles.includes("EDITOR")) return "/dashboard";
+  if (roles.includes("PUBLISHER")) return "/publisher";
+  if (roles.includes("REVIEWER")) return "/reviews";
+  return "/dashboard";
 }
 
 export async function login(input: unknown): Promise<ActionError | undefined> {
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) return { error: "Invalid email or password." };
 
-  const token = await loginRequest(parsed.data.email, parsed.data.password);
-  if (!token) return { error: "Invalid email or password." };
+  const result = await loginRequest(parsed.data.email, parsed.data.password);
+  if (!result) return { error: "Invalid email or password." };
 
-  await setSession(token);
-  redirect("/dashboard");
+  await setSession(result.accessToken);
+  redirect(homeRouteFor(result.user.roles));
 }
 
 export async function register(input: unknown): Promise<ActionError | undefined> {
@@ -67,11 +79,11 @@ export async function register(input: unknown): Promise<ActionError | undefined>
   if (res.status === 409) return { error: "That email is already registered." };
   if (!res.ok) return { error: "Registration failed — please try again." };
 
-  const token = await loginRequest(parsed.data.email, parsed.data.password);
-  if (!token) redirect("/login");
+  const result = await loginRequest(parsed.data.email, parsed.data.password);
+  if (!result) redirect("/login");
 
-  await setSession(token);
-  redirect("/dashboard");
+  await setSession(result.accessToken);
+  redirect(homeRouteFor(result.user.roles));
 }
 
 export async function logout(): Promise<void> {
