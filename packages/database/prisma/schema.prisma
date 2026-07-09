@@ -181,6 +181,7 @@ model Notification {
   status    NotificationStatus @default(PENDING)
   error     String?
   sentAt    DateTime?
+  readAt    DateTime?
   createdAt DateTime           @default(now())
 
   user User @relation(fields: [userId], references: [id])

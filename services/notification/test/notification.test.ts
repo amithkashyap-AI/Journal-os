@@ -107,4 +107,69 @@ describe("notification service", () => {
     });
     expect(other.json().notifications).toHaveLength(0);
   });
+
+  it("marks a single notification read, only for its owner", async () => {
+    await notify({
+      userId: "author-1",
+      type: "SUBMISSION_DECISION",
+      data: { title: "Paper", status: "ACCEPTED" },
+    });
+    const [stored] = await store.listByUser("author-1", 1);
+
+    const stranger = app.jwt.sign({ sub: "someone-else", email: "x@example.com", roles: ["AUTHOR"] });
+    const forbidden = await app.inject({
+      method: "POST",
+      url: `/v1/notifications/${stored!.id}/read`,
+      headers: { authorization: `Bearer ${stranger}` },
+    });
+    expect(forbidden.statusCode).toBe(404);
+
+    const owner = app.jwt.sign({ sub: "author-1", email: "ada@example.com", roles: ["AUTHOR"] });
+    const res = await app.inject({
+      method: "POST",
+      url: `/v1/notifications/${stored!.id}/read`,
+      headers: { authorization: `Bearer ${owner}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().notification.readAt).toBeTruthy();
+
+    // Idempotent: a second call keeps the original readAt.
+    const again = await app.inject({
+      method: "POST",
+      url: `/v1/notifications/${stored!.id}/read`,
+      headers: { authorization: `Bearer ${owner}` },
+    });
+    expect(again.statusCode).toBe(200);
+    expect(again.json().notification.readAt).toBe(res.json().notification.readAt);
+  });
+
+  it("marks all of a user's notifications read", async () => {
+    await notify({ userId: "author-1", type: "REVIEW_ASSIGNED", data: { title: "One" } });
+    await notify({ userId: "author-1", type: "REVIEW_ASSIGNED", data: { title: "Two" } });
+
+    const owner = app.jwt.sign({ sub: "author-1", email: "ada@example.com", roles: ["AUTHOR"] });
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/notifications/read-all",
+      headers: { authorization: `Bearer ${owner}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().updated).toBe(2);
+
+    const feed = await store.listByUser("author-1", 10);
+    expect(feed.every((n) => n.readAt !== null)).toBe(true);
+
+    // Nothing left unread on a second pass.
+    const repeat = await app.inject({
+      method: "POST",
+      url: "/v1/notifications/read-all",
+      headers: { authorization: `Bearer ${owner}` },
+    });
+    expect(repeat.json().updated).toBe(0);
+  });
+
+  it("rejects mark-read without a token", async () => {
+    const res = await app.inject({ method: "POST", url: "/v1/notifications/read-all" });
+    expect(res.statusCode).toBe(401);
+  });
 });

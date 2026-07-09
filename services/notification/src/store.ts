@@ -11,6 +11,7 @@ export interface StoredNotification {
   status: NotificationStatus;
   error: string | null;
   sentAt: Date | null;
+  readAt: Date | null;
   createdAt: Date;
 }
 
@@ -30,6 +31,10 @@ export interface NotificationStore {
   markSent(id: string): Promise<void>;
   markFailed(id: string, error: string): Promise<void>;
   listByUser(userId: string, limit: number): Promise<StoredNotification[]>;
+  /** Marks one of the user's own notifications read; null if not found or not theirs. */
+  markRead(id: string, userId: string): Promise<StoredNotification | null>;
+  /** Marks all of the user's unread notifications read; returns how many changed. */
+  markAllRead(userId: string): Promise<number>;
 }
 
 export class InMemoryNotificationStore implements NotificationStore {
@@ -56,6 +61,7 @@ export class InMemoryNotificationStore implements NotificationStore {
       status: "PENDING",
       error: null,
       sentAt: null,
+      readAt: null,
       createdAt: new Date(),
     };
     this.byId.set(notification.id, notification);
@@ -81,5 +87,24 @@ export class InMemoryNotificationStore implements NotificationStore {
       .filter((notification) => notification.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, limit);
+  }
+
+  async markRead(id: string, userId: string): Promise<StoredNotification | null> {
+    const existing = this.byId.get(id);
+    if (!existing || existing.userId !== userId) return null;
+    const updated = { ...existing, readAt: existing.readAt ?? new Date() };
+    this.byId.set(id, updated);
+    return updated;
+  }
+
+  async markAllRead(userId: string): Promise<number> {
+    let changed = 0;
+    for (const [id, notification] of this.byId) {
+      if (notification.userId === userId && notification.readAt === null) {
+        this.byId.set(id, { ...notification, readAt: new Date() });
+        changed += 1;
+      }
+    }
+    return changed;
   }
 }

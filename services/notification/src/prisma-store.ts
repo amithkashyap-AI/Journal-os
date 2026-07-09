@@ -41,4 +41,19 @@ export class PrismaNotificationStore implements NotificationStore {
       take: limit,
     });
   }
+
+  async markRead(id: string, userId: string): Promise<StoredNotification | null> {
+    const existing = await this.db.notification.findUnique({ where: { id } });
+    if (!existing || existing.userId !== userId) return null;
+    if (existing.readAt) return existing;
+    return this.db.notification.update({ where: { id }, data: { readAt: new Date() } });
+  }
+
+  async markAllRead(userId: string): Promise<number> {
+    const { count } = await this.db.notification.updateMany({
+      where: { userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return count;
+  }
 }

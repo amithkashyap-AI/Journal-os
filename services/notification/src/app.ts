@@ -99,5 +99,26 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.send({ notifications: items });
   });
 
+  app.post<{ Params: { id: string } }>(
+    "/v1/notifications/:id/read",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const notification = await notifications.markRead(request.params.id, request.user.sub);
+      if (!notification) {
+        return reply.code(404).send({ error: "NOT_FOUND" });
+      }
+      return reply.send({ notification });
+    },
+  );
+
+  app.post(
+    "/v1/notifications/read-all",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const updated = await notifications.markAllRead(request.user.sub);
+      return reply.send({ updated });
+    },
+  );
+
   return app;
 }

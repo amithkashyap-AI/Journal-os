@@ -1,4 +1,8 @@
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+} from "fastify";
 import fastifyCors from "@fastify/cors";
 import fastifyProxy from "@fastify/http-proxy";
 import fastifyRateLimit from "@fastify/rate-limit";
@@ -89,25 +93,39 @@ export function buildApp(options: AppOptions): FastifyInstance {
   // Reviewer assignment lives on the review service although its path starts
   // with /submissions; forward it explicitly so the prefix proxy above does
   // not send it to the submission service.
-  app.post<{ Params: { id: string } }>(
-    "/api/submissions/:id/reviews",
-    async (request, reply) => {
-      const res = await fetch(`${upstreams.review}/v1/submissions/${request.params.id}/reviews`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(request.headers.authorization
-            ? { authorization: request.headers.authorization }
-            : {}),
-        },
-        body: JSON.stringify(request.body ?? {}),
-      });
-      const body = await res.text();
-      return reply
-        .code(res.status)
-        .header("content-type", res.headers.get("content-type") ?? "application/json")
-        .send(body);
-    },
+  async function forwardPost(request: FastifyRequest, reply: FastifyReply, targetUrl: string) {
+    const res = await fetch(targetUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(request.headers.authorization
+          ? { authorization: request.headers.authorization }
+          : {}),
+      },
+      body: JSON.stringify(request.body ?? {}),
+    });
+    const body = await res.text();
+    return reply
+      .code(res.status)
+      .header("content-type", res.headers.get("content-type") ?? "application/json")
+      .send(body);
+  }
+
+  app.post<{ Params: { id: string } }>("/api/submissions/:id/reviews", async (request, reply) =>
+    forwardPost(request, reply, `${upstreams.review}/v1/submissions/${request.params.id}/reviews`),
+  );
+
+  // Mark-read is a user-scoped write and safe to expose; only the internal
+  // notification-creation POST stays blocked (the GET-only proxy above).
+  app.post("/api/notifications/read-all", async (request, reply) =>
+    forwardPost(request, reply, `${upstreams.notification}/v1/notifications/read-all`),
+  );
+  app.post<{ Params: { id: string } }>("/api/notifications/:id/read", async (request, reply) =>
+    forwardPost(
+      request,
+      reply,
+      `${upstreams.notification}/v1/notifications/${request.params.id}/read`,
+    ),
   );
 
   return app;

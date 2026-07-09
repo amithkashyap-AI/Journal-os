@@ -108,6 +108,29 @@ describe("api gateway", () => {
     expect(write.statusCode).toBe(404);
   });
 
+  it("forwards mark-read writes to the notification service", async () => {
+    const one = await app.inject({
+      method: "POST",
+      url: "/api/notifications/n-1/read",
+      headers: { authorization: "Bearer t" },
+    });
+    expect(one.json()).toMatchObject({
+      service: "notification",
+      url: "/v1/notifications/n-1/read",
+      authorization: "Bearer t",
+    });
+
+    const all = await app.inject({
+      method: "POST",
+      url: "/api/notifications/read-all",
+      headers: { authorization: "Bearer t" },
+    });
+    expect(all.json()).toMatchObject({
+      service: "notification",
+      url: "/v1/notifications/read-all",
+    });
+  });
+
   it("strips x-internal-secret before proxying", async () => {
     const res = await app.inject({
       method: "GET",
