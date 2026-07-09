@@ -1,33 +1,30 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { 
-  Users, 
-  Settings, 
-  Activity, 
-  BookOpen, 
-  RefreshCw, 
-  ShieldAlert, 
-  UserCheck, 
-  Check, 
+import { useState } from "react";
+import {
+  Users,
+  Activity,
+  BookOpen,
+  RefreshCw,
+  UserCheck,
+  Check,
   AlertCircle,
   Plus,
-  Loader2
+  Loader2,
 } from "lucide-react";
 import type { PublicUser, UserRole } from "@rpos/types";
 import type { JournalDto, PublisherDto } from "../lib/catalog";
-import { updateUserRoles, checkServicesHealth } from "../lib/auth-actions";
+import { updateUserRoles, checkServicesHealth, type ServiceStatus } from "../lib/auth-actions";
 import { createJournal } from "../lib/journal-actions";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
-import { Badge } from "./ui/badge";
 
 interface AdminDashboardClientProps {
   initialUsers: PublicUser[];
-  initialHealth: { name: string; status: "online" | "offline" }[];
+  initialHealth: ServiceStatus[];
   initialJournals: JournalDto[];
   initialPublishers: PublisherDto[];
 }
@@ -44,7 +41,6 @@ export function AdminDashboardClient({
   const [publishers] = useState<PublisherDto[]>(initialPublishers);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [isPending, startTransition] = useTransition();
   const [isHealthPending, setIsHealthPending] = useState(false);
 
   // New journal form state
@@ -110,44 +106,35 @@ export function AdminDashboardClient({
     }
 
     setIsJournalSubmitting(true);
-    
-    // Generate a simple slug
-    const slug = newJournalTitle
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
 
+    // The server derives the slug from the title (see @rpos/utils slugify()).
     const result = await createJournal({
       title: newJournalTitle,
       publisherId: newJournalPublisherId,
       issn: newJournalIssn || undefined,
       description: newJournalDesc || undefined,
-      slug,
     });
 
     setIsJournalSubmitting(false);
 
-    if (result?.error) {
+    if ("error" in result) {
       setFormError(result.error);
-    } else {
-      setFormSuccess("Journal created successfully!");
-      setNewJournalTitle("");
-      setNewJournalIssn("");
-      setNewJournalDesc("");
-      // Add newly created journal to list locally
-      setJournals((prev) => [
-        ...prev,
-        {
-          id: Math.random().toString(),
-          title: newJournalTitle,
-          publisherId: newJournalPublisherId,
-          publisherName: publishers.find((p) => p.id === newJournalPublisherId)?.name || "Demo Publisher",
-          issn: newJournalIssn || null,
-          description: newJournalDesc || null,
-          slug,
-        },
-      ]);
+      return;
     }
+
+    setFormSuccess("Journal created successfully!");
+    setNewJournalTitle("");
+    setNewJournalIssn("");
+    setNewJournalDesc("");
+    setJournals((prev) => [
+      ...prev,
+      {
+        ...result.journal,
+        publisherName:
+          result.journal.publisherName ??
+          publishers.find((p) => p.id === newJournalPublisherId)?.name,
+      },
+    ]);
   }
 
   const filteredUsers = users.filter(
@@ -234,12 +221,7 @@ export function AdminDashboardClient({
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">{service.name}</p>
                   <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
-                    {service.name.includes("Gateway") ? "port: 4000" : 
-                     service.name.includes("Auth") ? "port: 4001" :
-                     service.name.includes("Submission") ? "port: 4002" :
-                     service.name.includes("Review") ? "port: 4003" :
-                     service.name.includes("Notification") ? "port: 4004" :
-                     service.name.includes("Journal") ? "port: 4005" : "port: 4006"}
+                    {service.url}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

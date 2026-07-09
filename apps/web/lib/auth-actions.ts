@@ -3,7 +3,18 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { loginSchema, registerSchema } from "@rpos/validation";
-import { AUTH_API, SESSION_COOKIE } from "./api";
+import type { PublicUser, UserRole } from "@rpos/types";
+import {
+  apiFetch,
+  AUTH_API,
+  FILE_API,
+  GATEWAY_API,
+  JOURNAL_API,
+  NOTIFICATION_API,
+  REVIEW_API,
+  SESSION_COOKIE,
+  SUBMISSION_API,
+} from "./api";
 
 export interface ActionError {
   error: string;
@@ -69,9 +80,6 @@ export async function logout(): Promise<void> {
   redirect("/login");
 }
 
-import type { PublicUser, UserRole } from "@rpos/types";
-import { apiFetch } from "./api";
-
 export async function listAllUsers(): Promise<{ users?: PublicUser[]; error?: string }> {
   try {
     const res = await apiFetch(AUTH_API, "/v1/users/all");
@@ -101,33 +109,33 @@ export async function updateUserRoles(
   }
 }
 
-export async function checkServicesHealth() {
+export interface ServiceStatus {
+  name: string;
+  /** The configured base URL — services can bind to a fallback port via findFreePort(), so this reflects config, not necessarily the live port. */
+  url: string;
+  status: "online" | "offline";
+}
+
+export async function checkServicesHealth(): Promise<ServiceStatus[]> {
   const services = [
-    { name: "API Gateway", url: "http://localhost:4000/health" },
-    { name: "Auth Service", url: "http://localhost:4001/health" },
-    { name: "Submission Service", url: "http://localhost:4002/health" },
-    { name: "Review Service", url: "http://localhost:4003/health" },
-    { name: "Notification Service", url: "http://localhost:4004/health" },
-    { name: "Journal Service", url: "http://localhost:4005/health" },
-    { name: "File Storage Service", url: "http://localhost:4006/health" },
+    { name: "API Gateway", url: GATEWAY_API },
+    { name: "Auth Service", url: AUTH_API },
+    { name: "Submission Service", url: SUBMISSION_API },
+    { name: "Review Service", url: REVIEW_API },
+    { name: "Notification Service", url: NOTIFICATION_API },
+    { name: "Journal Service", url: JOURNAL_API },
+    { name: "File Storage Service", url: FILE_API },
   ];
 
-  const results = await Promise.all(
+  return Promise.all(
     services.map(async (service) => {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1000);
-        const res = await fetch(service.url, { signal: controller.signal });
-        clearTimeout(timeoutId);
-        if (res.ok) {
-          return { name: service.name, status: "online" as const };
-        }
-      } catch (e) {
-        // Ignore
+        const res = await fetch(`${service.url}/health`, { signal: AbortSignal.timeout(1000) });
+        return { name: service.name, url: service.url, status: res.ok ? "online" : "offline" };
+      } catch {
+        return { name: service.name, url: service.url, status: "offline" };
       }
-      return { name: service.name, status: "offline" as const };
-    })
+    }),
   );
-  return results;
 }
 

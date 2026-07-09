@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 
+export const GATEWAY_API = process.env.GATEWAY_API_URL ?? "http://localhost:4000";
 export const AUTH_API = process.env.AUTH_API_URL ?? "http://localhost:4001";
 export const SUBMISSION_API = process.env.SUBMISSION_API_URL ?? "http://localhost:4002";
 export const REVIEW_API = process.env.REVIEW_API_URL ?? "http://localhost:4003";

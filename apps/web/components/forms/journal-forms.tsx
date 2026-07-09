@@ -93,7 +93,7 @@ export function JournalForm({ publishers }: { publishers: PublisherDto[] }) {
       issn: values.issn || undefined,
       description: values.description || undefined,
     });
-    if (result?.error) setServerError(result.error);
+    if ("error" in result) setServerError(result.error);
     else reset();
   }
 

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createJournalSchema, createPublisherSchema } from "@rpos/validation";
 import { apiFetch, JOURNAL_API } from "./api";
 import type { ActionError } from "./auth-actions";
+import type { JournalDto } from "./catalog";
 
 export async function createPublisher(input: unknown): Promise<ActionError | undefined> {
   const parsed = createPublisherSchema.safeParse(input);
@@ -22,7 +23,9 @@ export async function createPublisher(input: unknown): Promise<ActionError | und
   revalidatePath("/journals");
 }
 
-export async function createJournal(input: unknown): Promise<ActionError | undefined> {
+export async function createJournal(
+  input: unknown,
+): Promise<{ journal: JournalDto } | ActionError> {
   const parsed = createJournalSchema.safeParse(input);
   if (!parsed.success) return { error: "Check the journal details (title min 3 chars)." };
 
@@ -37,4 +40,6 @@ export async function createJournal(input: unknown): Promise<ActionError | undef
   if (!res.ok) return { error: "Could not create the journal." };
 
   revalidatePath("/journals");
+  const { journal } = (await res.json()) as { journal: JournalDto };
+  return { journal };
 }
