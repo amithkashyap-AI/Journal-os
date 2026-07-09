@@ -245,6 +245,71 @@ describe("submission service", () => {
     expect(unassigned.statusCode).toBe(404);
   });
 
+  it("lets a publisher who owns the journal read the submission but hides it from other publishers", async () => {
+    const draft = await createDraft("author-1");
+    store.setJournalOwner(draft.journalId, "pub-1");
+
+    const owner = await app.inject({
+      method: "GET",
+      url: `/v1/submissions/${draft.id}`,
+      headers: authHeader("pub-1", ["PUBLISHER"]),
+    });
+    expect(owner.statusCode).toBe(200);
+
+    const stranger = await app.inject({
+      method: "GET",
+      url: `/v1/submissions/${draft.id}`,
+      headers: authHeader("pub-2", ["PUBLISHER"]),
+    });
+    expect(stranger.statusCode).toBe(404);
+  });
+
+  it("lets the owning publisher publish an accepted submission, and nothing else", async () => {
+    const draft = await createDraft("author-1");
+    store.setJournalOwner(draft.journalId, "pub-1");
+
+    // Visibility alone doesn't grant every action: request_revisions is
+    // EDITOR/ADMIN-only in the workflow engine, so a publisher gets 403 even
+    // though canAct let them past the initial gate.
+    await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+    const forbiddenAction = await act(draft.id, "start_review", "pub-1", ["PUBLISHER"]);
+    expect(forbiddenAction.statusCode).toBe(403);
+
+    await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+    await act(draft.id, "accept", "editor-1", ["EDITOR"]);
+
+    const strangerPublish = await act(draft.id, "publish", "pub-2", ["PUBLISHER"]);
+    expect(strangerPublish.statusCode).toBe(404);
+
+    const publish = await act(draft.id, "publish", "pub-1", ["PUBLISHER"]);
+    expect(publish.statusCode).toBe(200);
+    expect(publish.json().submission.status).toBe("PUBLISHED");
+  });
+
+  it("includes journal-owned submissions alongside authored ones for a publisher", async () => {
+    const ownJournal = await createDraft("author-1");
+    store.setJournalOwner(ownJournal.journalId, "pub-1");
+
+    // A submission under a different journal that pub-1 does not own.
+    const otherJournalRes = await app.inject({
+      method: "POST",
+      url: "/v1/submissions",
+      headers: authHeader("author-2", ["AUTHOR"]),
+      payload: { ...DRAFT_PAYLOAD, journalId: "journal-2" },
+    });
+    store.setJournalOwner("journal-2", "pub-2");
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/v1/submissions",
+      headers: authHeader("pub-1", ["PUBLISHER"]),
+    });
+    expect(res.statusCode).toBe(200);
+    const ids = res.json().submissions.map((s: { id: string }) => s.id);
+    expect(ids).toContain(ownJournal.id);
+    expect(ids).not.toContain(otherJournalRes.json().submission.id);
+  });
+
   it("returns allowed actions with a single submission", async () => {
     const draft = await createDraft();
     const res = await app.inject({

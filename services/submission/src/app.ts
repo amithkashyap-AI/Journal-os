@@ -90,10 +90,20 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get("/v1/submissions", { onRequest: [app.authenticate] }, async (request, reply) => {
-    const items = isStaff(request.user)
-      ? await submissions.listAll()
-      : await submissions.listByAuthor(request.user.sub);
-    return reply.send({ submissions: items });
+    if (isStaff(request.user)) {
+      return reply.send({ submissions: await submissions.listAll() });
+    }
+
+    const mine = await submissions.listByAuthor(request.user.sub);
+    if (!hasAnyRole(request.user, "PUBLISHER")) {
+      return reply.send({ submissions: mine });
+    }
+
+    // A publisher also sees submissions under journals they own (e.g. to
+    // publish accepted manuscripts), merged with anything they authored.
+    const published = await submissions.listByJournalOwner(request.user.sub);
+    const byId = new Map([...mine, ...published].map((submission) => [submission.id, submission]));
+    return reply.send({ submissions: [...byId.values()] });
   });
 
   app.get<{ Params: { id: string } }>(
@@ -106,7 +116,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
         submission !== null &&
         (submission.authorId === request.user.sub ||
           isStaff(request.user) ||
-          (await submissions.isAssignedReviewer(submission.id, request.user.sub)));
+          (await submissions.isAssignedReviewer(submission.id, request.user.sub)) ||
+          (hasAnyRole(request.user, "PUBLISHER") &&
+            (await submissions.isJournalOwner(submission.journalId, request.user.sub))));
       if (!submission || !canRead) {
         return reply.code(404).send({ error: "NOT_FOUND" });
       }
@@ -161,10 +173,20 @@ export function buildApp(options: AppOptions): FastifyInstance {
       }
 
       const submission = await submissions.findById(request.params.id);
-      if (!submission || (submission.authorId !== request.user.sub && !isStaff(request.user))) {
+      const canAct =
+        submission !== null &&
+        (submission.authorId === request.user.sub ||
+          isStaff(request.user) ||
+          (hasAnyRole(request.user, "PUBLISHER") &&
+            (await submissions.isJournalOwner(submission.journalId, request.user.sub))));
+      if (!submission || !canAct) {
         return reply.code(404).send({ error: "NOT_FOUND" });
       }
 
+      // canAct only grants visibility; applyTransition still enforces which
+      // specific actions each role may perform (e.g. a publisher may only
+      // ever reach "publish" here — every other action's role list excludes
+      // PUBLISHER).
       const result = applyTransition(submission.status, parsed.data.action, request.user.roles);
       if (!result.ok) {
         const statusCode = result.reason === "FORBIDDEN" ? 403 : 409;

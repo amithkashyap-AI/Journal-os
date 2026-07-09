@@ -28,6 +28,13 @@ export class PrismaSubmissionStore implements SubmissionStore {
     return this.db.submission.findMany({ orderBy: { createdAt: "desc" } });
   }
 
+  async listByJournalOwner(ownerId: string): Promise<StoredSubmission[]> {
+    return this.db.submission.findMany({
+      where: { journal: { publisher: { ownerId } } },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
   async update(id: string, patch: SubmissionPatch): Promise<StoredSubmission> {
     return this.db.submission.update({ where: { id }, data: patch });
   }
@@ -37,5 +44,13 @@ export class PrismaSubmissionStore implements SubmissionStore {
       where: { submissionId, reviewerId: userId },
     });
     return count > 0;
+  }
+
+  async isJournalOwner(journalId: string, userId: string): Promise<boolean> {
+    const journal = await this.db.journal.findUnique({
+      where: { id: journalId },
+      select: { publisher: { select: { ownerId: true } } },
+    });
+    return journal?.publisher.ownerId === userId;
   }
 }
