@@ -17,25 +17,9 @@ const ThemeContext = createContext<ThemeContextType>({
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("theme-slate");
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("rpos-theme") as Theme;
-    if (savedTheme && ["theme-slate", "theme-emerald", "theme-cyberpunk", "theme-crimson", "theme-solarized", "theme-skyblue"].includes(savedTheme)) {
-      setThemeState(savedTheme);
-      updateDocumentTheme(savedTheme);
-    } else {
-      updateDocumentTheme("theme-slate");
-    }
-  }, []);
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-    localStorage.setItem("rpos-theme", newTheme);
-    updateDocumentTheme(newTheme);
-  };
-
-  const updateDocumentTheme = (themeClass: Theme) => {
+  function updateDocumentTheme(themeClass: Theme) {
     const root = document.documentElement;
-    
+
     // Toggle dark mode class based on chosen theme
     if (themeClass === "theme-skyblue") {
       root.classList.remove("dark");
@@ -47,6 +31,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     root.classList.remove("theme-slate", "theme-emerald", "theme-cyberpunk", "theme-crimson", "theme-solarized", "theme-skyblue");
     root.classList.add(themeClass);
+  }
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("rpos-theme") as Theme;
+    if (savedTheme && ["theme-slate", "theme-emerald", "theme-cyberpunk", "theme-crimson", "theme-solarized", "theme-skyblue"].includes(savedTheme)) {
+      // localStorage isn't available during SSR, so the persisted theme can
+      // only be synced in after mount.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setThemeState(savedTheme);
+      updateDocumentTheme(savedTheme);
+    } else {
+      updateDocumentTheme("theme-slate");
+    }
+  }, []);
+
+  const setTheme = (newTheme: Theme) => {
+    setThemeState(newTheme);
+    localStorage.setItem("rpos-theme", newTheme);
+    updateDocumentTheme(newTheme);
   };
 
   return (
