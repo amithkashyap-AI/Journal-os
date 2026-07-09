@@ -35,9 +35,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const sidebarContent = (
     <div className="space-y-4">
       {user?.roles.includes("ADMIN") ? (
-        <SidebarSection title="Superadmin System">
-          <SidebarNav user={user} />
-        </SidebarSection>
+        <SidebarNav />
       ) : (
         <SidebarSection title="Workspace">
           <NavLink
@@ -71,6 +69,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       name={user.name}
       email={user.email}
       role={user.roles.join(", ")}
+      settingsHref="/settings"
       logoutAction={logout}
     />
   ) : undefined;
