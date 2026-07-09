@@ -27,12 +27,17 @@ export function NavLink({
   exact = false,
 }: NavLinkProps) {
   const pathname = usePathname();
-  const { collapsed } = useSidebar();
+  const { collapsed, mobileOpen, toggleMobile } = useSidebar();
   const isActive = exact ? pathname === href : pathname.startsWith(href);
 
   return (
     <Link
       href={href}
+      onClick={() => {
+        // On mobile the sidebar is an overlay drawer; leave it open on
+        // desktop where `mobileOpen` is never toggled true in the first place.
+        if (mobileOpen) toggleMobile();
+      }}
       className={cn(
         "group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150 min-w-0",
         isActive

@@ -56,7 +56,7 @@ function DashboardShellInner({
           {topBarContent}
         </TopBar>
 
-        <main className="animate-in p-6">{children}</main>
+        <main className="animate-in overflow-x-hidden p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

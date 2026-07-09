@@ -293,12 +293,12 @@ export function AdminDashboardClient({
                   ) : (
                     filteredUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-secondary/10 transition-colors">
-                        <td className="py-4 px-6 min-w-[200px]">
+                        <td className="py-4 px-6 min-w-[200px] whitespace-nowrap">
                           <p className="font-semibold text-foreground">{user.name}</p>
                           <p className="text-xs text-muted-foreground mt-0.5 font-mono">{user.email}</p>
                         </td>
                         <td className="py-4 px-6 min-w-[360px]">
-                          <div className="flex flex-wrap items-center justify-center gap-1.5">
+                          <div className="flex flex-nowrap items-center justify-center gap-1.5 whitespace-nowrap">
                             {allAvailableRoles.map((role) => {
                               const isActive = user.roles.includes(role);
                               const isSaving = savingUserId === user.id;

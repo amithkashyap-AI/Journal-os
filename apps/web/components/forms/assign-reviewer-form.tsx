@@ -33,8 +33,8 @@ export function AssignReviewerForm({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <div className="w-64">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="w-full sm:w-64">
           <NativeSelect value={reviewerId} onChange={(e) => setReviewerId(e.target.value)}>
             <option value="">Select a reviewer…</option>
             {reviewers.map((reviewer) => (
@@ -44,7 +44,7 @@ export function AssignReviewerForm({
             ))}
           </NativeSelect>
         </div>
-        <Button onClick={onAssign} disabled={pending || !reviewerId}>
+        <Button onClick={onAssign} disabled={pending || !reviewerId} className="w-full sm:w-auto">
           <UserPlus /> {pending ? "Assigning…" : "Assign reviewer"}
         </Button>
       </div>

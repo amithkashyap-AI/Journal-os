@@ -161,14 +161,14 @@ function Hero() {
                 <div className="size-3 rounded-full bg-amber-400/60" />
                 <div className="size-3 rounded-full bg-emerald-400/60" />
               </div>
-              <div className="mx-auto flex h-7 w-80 items-center justify-center rounded-md bg-background text-xs text-muted-foreground">
+              <div className="mx-auto flex h-7 w-full max-w-80 items-center justify-center rounded-md bg-background text-xs text-muted-foreground">
                 app.rpos.io/dashboard
               </div>
             </div>
             {/* Dashboard mockup content */}
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {/* Stats row */}
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 {[
                   { label: "Total Submissions", value: "1,247", trend: "+12%", color: "text-brand-600" },
                   { label: "Under Review", value: "89", trend: "+3%", color: "text-violet-600" },
@@ -176,7 +176,7 @@ function Hero() {
                   { label: "Published", value: "816", trend: "+15%", color: "text-teal-600" },
                 ].map((stat) => (
                   <div key={stat.label} className="rounded-xl border border-border/50 bg-background p-4">
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                    <p className="truncate text-xs text-muted-foreground">{stat.label}</p>
                     <p className="mt-1 text-2xl font-semibold">{stat.value}</p>
                     <p className={`mt-0.5 text-xs font-medium ${stat.color}`}>{stat.trend} this month</p>
                   </div>
@@ -185,9 +185,9 @@ function Hero() {
               {/* Table preview */}
               <div className="mt-4 rounded-xl border border-border/50 bg-background">
                 <div className="border-b border-border/50 px-4 py-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold">Recent Submissions</p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {["All", "Under Review", "Accepted"].map((filter) => (
                         <span
                           key={filter}
@@ -208,9 +208,9 @@ function Hero() {
                   { title: "Transformer Models in Climate Prediction", status: "Accepted", statusColor: "bg-emerald-100 text-emerald-700" },
                   { title: "Federated Learning in Healthcare Systems", status: "Published", statusColor: "bg-teal-100 text-teal-700" },
                 ].map((item) => (
-                  <div key={item.title} className="flex items-center justify-between border-b border-border/30 px-4 py-3 last:border-0">
-                    <p className="text-sm">{item.title}</p>
-                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${item.statusColor}`}>
+                  <div key={item.title} className="flex items-center justify-between gap-3 border-b border-border/30 px-4 py-3 last:border-0">
+                    <p className="min-w-0 truncate text-sm">{item.title}</p>
+                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${item.statusColor}`}>
                       {item.status}
                     </span>
                   </div>

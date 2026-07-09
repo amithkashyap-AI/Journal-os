@@ -99,14 +99,14 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Input
           placeholder="Filter by title…"
-          className="max-w-xs"
+          className="w-full sm:max-w-xs"
           value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
           onChange={(e) => table.getColumn("title")?.setFilterValue(e.target.value)}
         />
-        <div className="w-52">
+        <div className="w-full sm:w-52">
           <NativeSelect
             value={(table.getColumn("status")?.getFilterValue() as string) ?? ""}
             onChange={(e) =>
@@ -121,7 +121,7 @@ export function SubmissionsTable({ rows }: { rows: SubmissionRow[] }) {
             ))}
           </NativeSelect>
         </div>
-        <span className="ml-auto text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground sm:ml-auto">
           {table.getFilteredRowModel().rows.length} of {rows.length}
         </span>
       </div>
