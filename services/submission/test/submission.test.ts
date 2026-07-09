@@ -286,6 +286,34 @@ describe("submission service", () => {
     expect(publish.json().submission.status).toBe("PUBLISHED");
   });
 
+  it("notifies the owning publisher when a submission is accepted", async () => {
+    const draft = await createDraft("author-1");
+    store.setJournalOwner(draft.journalId, "pub-1");
+
+    await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+    await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+    await act(draft.id, "accept", "editor-1", ["EDITOR"]);
+
+    const accepted = notifier.events.filter((e) => e.type === "SUBMISSION_ACCEPTED");
+    expect(accepted).toHaveLength(1);
+    expect(accepted[0]).toMatchObject({
+      userId: "pub-1",
+      type: "SUBMISSION_ACCEPTED",
+      data: { title: DRAFT_PAYLOAD.title },
+    });
+  });
+
+  it("does not notify anyone about acceptance when the journal's publisher is unowned", async () => {
+    const draft = await createDraft("author-1");
+    // No store.setJournalOwner call — mirrors an admin-created, unowned publisher.
+
+    await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+    await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+    await act(draft.id, "accept", "editor-1", ["EDITOR"]);
+
+    expect(notifier.events.filter((e) => e.type === "SUBMISSION_ACCEPTED")).toHaveLength(0);
+  });
+
   it("includes journal-owned submissions alongside authored ones for a publisher", async () => {
     const ownJournal = await createDraft("author-1");
     store.setJournalOwner(ownJournal.journalId, "pub-1");

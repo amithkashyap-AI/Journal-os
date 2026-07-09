@@ -3,6 +3,7 @@ export const NOTIFICATION_TYPES = [
   "REVIEW_ASSIGNED",
   "SUBMISSION_SUBMITTED",
   "REVIEW_FILED",
+  "SUBMISSION_ACCEPTED",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -53,6 +54,12 @@ export function render(type: NotificationType, data: Record<string, unknown>): R
       return {
         subject: `Review filed for "${title}"`,
         body: `A reviewer filed a ${recommendation.replaceAll("_", " ").toLowerCase()} recommendation for "${title}". Sign in to see the comments and record a decision.`,
+      };
+    }
+    case "SUBMISSION_ACCEPTED": {
+      return {
+        subject: `Ready to publish: "${title}"`,
+        body: `"${title}" has been accepted and is ready to publish. Sign in to your publisher dashboard to publish it.`,
       };
     }
   }

@@ -41,6 +41,8 @@ export interface SubmissionStore {
   isAssignedReviewer(submissionId: string, userId: string): Promise<boolean>;
   /** Whether the given user owns the publisher behind the submission's journal. */
   isJournalOwner(journalId: string, userId: string): Promise<boolean>;
+  /** The userId that owns the publisher behind this journal, if any (for notifying them). */
+  findJournalOwnerId(journalId: string): Promise<string | null>;
 }
 
 export class InMemorySubmissionStore implements SubmissionStore {
@@ -63,6 +65,10 @@ export class InMemorySubmissionStore implements SubmissionStore {
 
   async isJournalOwner(journalId: string, userId: string): Promise<boolean> {
     return this.journalOwners.get(journalId) === userId;
+  }
+
+  async findJournalOwnerId(journalId: string): Promise<string | null> {
+    return this.journalOwners.get(journalId) ?? null;
   }
 
   async listByJournalOwner(ownerId: string): Promise<StoredSubmission[]> {

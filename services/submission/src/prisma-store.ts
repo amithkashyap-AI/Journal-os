@@ -53,4 +53,12 @@ export class PrismaSubmissionStore implements SubmissionStore {
     });
     return journal?.publisher.ownerId === userId;
   }
+
+  async findJournalOwnerId(journalId: string): Promise<string | null> {
+    const journal = await this.db.journal.findUnique({
+      where: { id: journalId },
+      select: { publisher: { select: { ownerId: true } } },
+    });
+    return journal?.publisher.ownerId ?? null;
+  }
 }

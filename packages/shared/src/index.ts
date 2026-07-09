@@ -5,7 +5,8 @@ type NotificationType =
   | "SUBMISSION_DECISION"
   | "REVIEW_ASSIGNED"
   | "SUBMISSION_SUBMITTED"
-  | "REVIEW_FILED";
+  | "REVIEW_FILED"
+  | "SUBMISSION_ACCEPTED";
 
 export type NotificationEvent =
   | { userId: string; role?: never; type: NotificationType; data: Record<string, unknown> }

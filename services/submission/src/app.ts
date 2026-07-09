@@ -214,6 +214,17 @@ export function buildApp(options: AppOptions): FastifyInstance {
         });
       }
 
+      if (parsed.data.action === "accept") {
+        const ownerId = await submissions.findJournalOwnerId(submission.journalId);
+        if (ownerId) {
+          void notifier.notify({
+            userId: ownerId,
+            type: "SUBMISSION_ACCEPTED",
+            data: { title: submission.title },
+          });
+        }
+      }
+
       return reply.send({ submission: updated });
     },
   );
