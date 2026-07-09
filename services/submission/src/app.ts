@@ -42,8 +42,10 @@ function hasAnyRole(user: JwtPayload, ...roles: UserRole[]): boolean {
   return user.roles.some((role) => roles.includes(role));
 }
 
+const STAFF_ROLES: UserRole[] = ["EDITOR", "ADMIN"];
+
 function isStaff(user: JwtPayload): boolean {
-  return hasAnyRole(user, "EDITOR", "ADMIN");
+  return hasAnyRole(user, ...STAFF_ROLES);
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -179,6 +181,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
           userId: submission.authorId,
           type: "SUBMISSION_DECISION",
           data: { title: submission.title, status: updated.status },
+        });
+      }
+
+      if (parsed.data.action === "submit") {
+        void notifier.notify({
+          role: STAFF_ROLES,
+          type: "SUBMISSION_SUBMITTED",
+          data: { title: submission.title },
         });
       }
 

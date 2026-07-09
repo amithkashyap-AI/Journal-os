@@ -103,6 +103,26 @@ describe("review service", () => {
     expect(res.json().review.submittedAt).toBeTruthy();
   });
 
+  it("broadcasts REVIEW_FILED to editors once a recommendation is submitted", async () => {
+    const review = (await assign()).json().review;
+    const assignEvents = notifier.events.length;
+
+    await app.inject({
+      method: "POST",
+      url: `/v1/reviews/${review.id}/submit`,
+      headers: authHeader("reviewer-1", ["REVIEWER"]),
+      payload: { recommendation: "MINOR_REVISION", comments: "Solid work; tighten section 3." },
+    });
+
+    const filed = notifier.events.slice(assignEvents);
+    expect(filed).toHaveLength(1);
+    expect(filed[0]).toMatchObject({
+      role: ["EDITOR", "ADMIN"],
+      type: "REVIEW_FILED",
+      data: { title: "Paper One", recommendation: "MINOR_REVISION" },
+    });
+  });
+
   it("prevents double submission of a review", async () => {
     const review = (await assign()).json().review;
     const payload = { recommendation: "ACCEPT", comments: "Excellent contribution overall." };

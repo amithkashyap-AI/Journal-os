@@ -190,19 +190,39 @@ describe("submission service", () => {
     expect(afterSubmit.statusCode).toBe(409);
   });
 
-  it("notifies the author on editorial decisions but not on their own submit", async () => {
+  it("notifies the author on editorial decisions but not directly on their own submit", async () => {
     const draft = await createDraft("author-1");
     await act(draft.id, "submit", "author-1", ["AUTHOR"]);
-    expect(notifier.events).toHaveLength(0);
+    expect(notifier.events.filter((e) => e.type === "SUBMISSION_DECISION")).toHaveLength(0);
 
     await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
     await act(draft.id, "accept", "editor-1", ["EDITOR"]);
-    expect(notifier.events).toHaveLength(2);
-    expect(notifier.events[1]).toMatchObject({
+    const decisions = notifier.events.filter((e) => e.type === "SUBMISSION_DECISION");
+    expect(decisions).toHaveLength(2);
+    expect(decisions[1]).toMatchObject({
       userId: "author-1",
       type: "SUBMISSION_DECISION",
       data: { title: DRAFT_PAYLOAD.title, status: "ACCEPTED" },
     });
+  });
+
+  it("broadcasts SUBMISSION_SUBMITTED to editors when an author submits", async () => {
+    const draft = await createDraft("author-1");
+    await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+
+    const submitted = notifier.events.filter((e) => e.type === "SUBMISSION_SUBMITTED");
+    expect(submitted).toHaveLength(1);
+    expect(submitted[0]).toMatchObject({
+      role: ["EDITOR", "ADMIN"],
+      type: "SUBMISSION_SUBMITTED",
+      data: { title: DRAFT_PAYLOAD.title },
+    });
+
+    // Resubmission after revisions also broadcasts.
+    await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+    await act(draft.id, "request_revisions", "editor-1", ["EDITOR"]);
+    await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+    expect(notifier.events.filter((e) => e.type === "SUBMISSION_SUBMITTED")).toHaveLength(2);
   });
 
   it("lets an assigned reviewer read the submission but hides it from others", async () => {

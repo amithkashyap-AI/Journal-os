@@ -35,8 +35,10 @@ function hasAnyRole(user: JwtPayload, ...roles: UserRole[]): boolean {
   return user.roles.some((role) => roles.includes(role));
 }
 
+const STAFF_ROLES: UserRole[] = ["EDITOR", "ADMIN"];
+
 function isStaff(user: JwtPayload): boolean {
-  return hasAnyRole(user, "EDITOR", "ADMIN");
+  return hasAnyRole(user, ...STAFF_ROLES);
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -161,6 +163,16 @@ export function buildApp(options: AppOptions): FastifyInstance {
         comments: parsed.data.comments,
         submittedAt: new Date(),
       });
+
+      const submission = await reviews.findSubmission(review.submissionId);
+      if (submission) {
+        void notifier.notify({
+          role: STAFF_ROLES,
+          type: "REVIEW_FILED",
+          data: { title: submission.title, recommendation: parsed.data.recommendation },
+        });
+      }
+
       return reply.send({ review: updated });
     },
   );
