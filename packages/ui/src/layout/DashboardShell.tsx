@@ -20,6 +20,8 @@ interface DashboardShellProps {
   children: ReactNode;
   /** Notification count for bell badge */
   notificationCount?: number;
+  /** Replaces the built-in static bell with a live component. */
+  notificationsSlot?: ReactNode;
 }
 
 function DashboardShellInner({
@@ -30,6 +32,7 @@ function DashboardShellInner({
   topBarActions,
   children,
   notificationCount = 0,
+  notificationsSlot,
 }: DashboardShellProps) {
   const { collapsed } = useSidebar();
 
@@ -45,7 +48,11 @@ function DashboardShellInner({
           collapsed ? "md:ml-16" : "md:ml-64",
         )}
       >
-        <TopBar actions={topBarActions} notificationCount={notificationCount}>
+        <TopBar
+          actions={topBarActions}
+          notificationCount={notificationCount}
+          notificationsSlot={notificationsSlot}
+        >
           {topBarContent}
         </TopBar>
 

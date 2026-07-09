@@ -16,6 +16,8 @@ interface TopBarProps {
   showNotifications?: boolean;
   /** Number of unread notifications */
   notificationCount?: number;
+  /** Replaces the built-in static bell with a live component. */
+  notificationsSlot?: ReactNode;
   className?: string;
 }
 
@@ -25,6 +27,7 @@ export function TopBar({
   showSearch = true,
   showNotifications = true,
   notificationCount = 0,
+  notificationsSlot,
   className,
 }: TopBarProps) {
   const { toggleMobile } = useSidebar();
@@ -63,7 +66,9 @@ export function TopBar({
           </button>
         )}
 
-        {showNotifications && (
+        {notificationsSlot}
+
+        {!notificationsSlot && showNotifications && (
           <button
             className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             aria-label="Notifications"

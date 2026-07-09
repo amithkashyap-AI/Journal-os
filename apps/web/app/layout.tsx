@@ -6,6 +6,7 @@ import { logout } from "../lib/auth-actions";
 import { QueryProvider } from "../providers/query-provider";
 import { DashboardShell, NavLink, SidebarSection, UserMenu } from "@rpos/ui";
 import type { PublicUser } from "@rpos/types";
+import { NotificationBell } from "../components/NotificationBell";
 import { SidebarNav } from "../components/SidebarNav";
 
 import { ThemeProvider } from "../components/ThemeProvider";
@@ -83,6 +84,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <DashboardShell
                 sidebarContent={sidebarContent}
                 sidebarFooter={sidebarFooter}
+                notificationsSlot={<NotificationBell />}
                 topBarContent={
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
