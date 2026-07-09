@@ -5,6 +5,7 @@ import { DashboardShell, NavLink, SidebarSection, UserMenu } from "@rpos/ui";
 import { apiFetch, AUTH_API, getToken } from "../lib/api";
 import { logout } from "../lib/auth-actions";
 import { QueryProvider } from "../providers/query-provider";
+import { NotificationBell } from "../components/NotificationBell";
 import type { PublicUser } from "@rpos/types";
 
 export const metadata: Metadata = {
@@ -53,6 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <DashboardShell
               sidebarContent={sidebarContent}
               sidebarFooter={sidebarFooter}
+              notificationsSlot={<NotificationBell />}
               topBarContent={
                 <div className="flex items-center gap-2">
                   <ClipboardCheck className="size-4 text-muted-foreground" />
