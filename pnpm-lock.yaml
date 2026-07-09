@@ -231,6 +231,88 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  apps/publisher:
+    dependencies:
+      '@hookform/resolvers':
+        specifier: ^3.10.0
+        version: 3.10.0(react-hook-form@7.81.0(react@19.2.7))
+      '@radix-ui/react-label':
+        specifier: ^2.1.2
+        version: 2.1.11(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@radix-ui/react-slot':
+        specifier: ^1.1.2
+        version: 1.3.0(@types/react@19.2.17)(react@19.2.7)
+      '@rpos/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
+      '@rpos/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      '@rpos/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@rpos/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
+      '@rpos/workflow-engine':
+        specifier: workspace:*
+        version: link:../../packages/workflow-engine
+      '@tanstack/react-query':
+        specifier: ^5.66.0
+        version: 5.101.2(react@19.2.7)
+      '@tanstack/react-table':
+        specifier: ^8.20.6
+        version: 8.21.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^0.474.0
+        version: 0.474.0(react@19.2.7)
+      next:
+        specifier: ^15.1.6
+        version: 15.5.20(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.7(react@19.2.7)
+      react-hook-form:
+        specifier: ^7.54.2
+        version: 7.81.0(react@19.2.7)
+      tailwind-merge:
+        specifier: ^3.0.2
+        version: 3.6.0
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.0.3
+        version: 4.3.2
+      '@types/node':
+        specifier: ^22.10.7
+        version: 22.20.1
+      '@types/react':
+        specifier: ^19.0.8
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.0.3
+        version: 19.2.3(@types/react@19.2.17)
+      postcss:
+        specifier: ^8.5.1
+        version: 8.5.16
+      tailwindcss:
+        specifier: ^4.0.3
+        version: 4.3.2
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
   apps/reviewer:
     dependencies:
       '@hookform/resolvers':
