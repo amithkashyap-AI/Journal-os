@@ -6,16 +6,13 @@ import {
   BarChart3,
   Globe,
   Shield,
-  Zap,
   ArrowRight,
   Star,
-  ChevronRight,
   Send,
   ClipboardCheck,
   BookCopy,
   Layers,
   Award,
-  Clock,
   PenTool,
 } from "lucide-react";
 import Link from "next/link";

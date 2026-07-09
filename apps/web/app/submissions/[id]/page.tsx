@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { FileDown, Calendar, History, ClipboardList, PenTool, ExternalLink } from "lucide-react";
+import { FileDown, Calendar, History, ClipboardList, PenTool } from "lucide-react";
 import type { PublicUser } from "@rpos/types";
 import type { SubmissionAction } from "@rpos/workflow-engine";
 import { RecommendationBadge } from "../../../components/RecommendationBadge";
@@ -17,7 +17,7 @@ import {
 import { apiFetch, AUTH_API, getToken, REVIEW_API, SUBMISSION_API } from "../../../lib/api";
 import type { ReviewDto, SubmissionDto } from "../../../lib/dto";
 import { performSubmissionAction } from "../../../lib/submission-actions";
-import { PageHeader, Section, Timeline } from "@rpos/ui";
+import { PageHeader, Timeline } from "@rpos/ui";
 
 const ACTION_LABELS: Record<SubmissionAction, string> = {
   submit: "Submit for review",

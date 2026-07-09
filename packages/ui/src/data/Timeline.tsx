@@ -35,7 +35,7 @@ export function Timeline({ items, className }: TimelineProps) {
       {/* Vertical line */}
       <div className="absolute left-[11px] top-3 bottom-3 w-px bg-border" />
 
-      {items.map((item, index) => {
+      {items.map((item) => {
         const date =
           item.timestamp instanceof Date
             ? item.timestamp

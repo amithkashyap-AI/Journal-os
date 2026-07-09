@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClipboardList, Calendar, Inbox } from "lucide-react";
+import { ClipboardList, Calendar } from "lucide-react";
 import type { PublicUser } from "@rpos/types";
 import { RecommendationBadge } from "../../components/RecommendationBadge";
 import { Card, CardContent } from "../../components/ui/card";

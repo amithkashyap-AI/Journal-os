@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { BookOpen, HelpCircle, Layers } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import type { PublicUser } from "@rpos/types";
 import { JournalForm, PublisherForm } from "../../components/forms/journal-forms";
 import {
