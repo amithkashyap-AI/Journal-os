@@ -36,5 +36,8 @@ Flows worth driving: author portal login → dashboard → /submissions/new (jou
 
 ## Gotchas
 - **Stale dev servers**: previous agent sessions leave `next dev` processes holding 3000–3003 and corrupting `.next` (prod `next start` then 500s with `Cannot find module './vendor-chunks/...'`). Check `lsof -nP -iTCP:3000 -sTCP:LISTEN`, kill stale ones, `rm -rf apps/*/.next`, rebuild.
+- **Stale services on 4000–4006**: same for service processes. Fresh services then silently bind 4007+ (findFreePort) and your requests hit the stale code on the canonical port. Before starting, `lsof -nP -iTCP:4000-4009 -sTCP:LISTEN` and kill leftovers; after starting, grep the logs for the actual bound port.
+- **.env drift**: services only send notifications when `NOTIFICATION_API_URL` + `INTERNAL_API_SECRET` are set (otherwise `createNotifier()` is a silent no-op). Compare `.env` against `.env.example` when a flow mysteriously produces nothing.
+- Fastify 400s any POST that has a JSON content-type and an empty body — always send `-d '{}'` when curling POST endpoints with no payload.
 - Shell redirects to `/tmp` are sandboxed silently — write logs to the session scratchpad.
 - Kill everything you started when done (`kill <pids>`); don't leave servers running.
