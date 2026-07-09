@@ -118,5 +118,39 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.send({ users: matched.map(toPublicUser) });
   });
 
+  app.get("/v1/users/all", { onRequest: [app.authenticate] }, async (request, reply) => {
+    if (!request.user.roles.includes("ADMIN")) {
+      return reply.code(403).send({ error: "FORBIDDEN" });
+    }
+    const allUsers = await users.listAll();
+    return reply.send({ users: allUsers.map(toPublicUser) });
+  });
+
+  const updateRolesBodySchema = z.object({
+    roles: z.array(userRoleSchema),
+  });
+
+  app.put("/v1/users/:id/roles", { onRequest: [app.authenticate] }, async (request, reply) => {
+    if (!request.user.roles.includes("ADMIN")) {
+      return reply.code(403).send({ error: "FORBIDDEN" });
+    }
+    const { id } = request.params as { id: string };
+    const parsed = updateRolesBodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: "VALIDATION_ERROR",
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    try {
+      const updated = await users.updateRoles(id, parsed.data.roles);
+      return reply.send({ user: toPublicUser(updated) });
+    } catch (e: any) {
+      return reply.code(404).send({ error: e.message || "USER_NOT_FOUND" });
+    }
+  });
+
   return app;
 }
+

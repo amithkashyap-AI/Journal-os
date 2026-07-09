@@ -134,4 +134,121 @@ describe("auth service", () => {
     });
     expect(res.statusCode).toBe(403);
   });
+
+  it("lets an admin list all users", async () => {
+    await store.create({
+      email: "rev@example.com",
+      name: "Rev Iewer",
+      passwordHash: "irrelevant",
+      roles: ["REVIEWER"],
+    });
+    await register();
+
+    const adminToken = app.jwt.sign({
+      sub: "admin-1",
+      email: "admin@example.com",
+      roles: ["ADMIN"],
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: "/v1/users/all",
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().users).toHaveLength(2);
+    expect(res.json().users[0].passwordHash).toBeUndefined();
+  });
+
+  it("forbids non-admins (including editors) from listing all users", async () => {
+    const editorToken = app.jwt.sign({
+      sub: "editor-1",
+      email: "editor@example.com",
+      roles: ["EDITOR"],
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: "/v1/users/all",
+      headers: { authorization: `Bearer ${editorToken}` },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("lets an admin update a user's roles", async () => {
+    const target = await store.create({
+      email: "grace@example.com",
+      name: "Grace Hopper",
+      passwordHash: "irrelevant",
+      roles: ["AUTHOR"],
+    });
+
+    const adminToken = app.jwt.sign({
+      sub: "admin-1",
+      email: "admin@example.com",
+      roles: ["ADMIN"],
+    });
+    const res = await app.inject({
+      method: "PUT",
+      url: `/v1/users/${target.id}/roles`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { roles: ["AUTHOR", "REVIEWER"] },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().user.roles).toEqual(["AUTHOR", "REVIEWER"]);
+
+    const stored = await store.findById(target.id);
+    expect(stored?.roles).toEqual(["AUTHOR", "REVIEWER"]);
+  });
+
+  it("rejects role updates with invalid roles", async () => {
+    const target = await store.create({
+      email: "grace@example.com",
+      name: "Grace Hopper",
+      passwordHash: "irrelevant",
+      roles: ["AUTHOR"],
+    });
+
+    const adminToken = app.jwt.sign({
+      sub: "admin-1",
+      email: "admin@example.com",
+      roles: ["ADMIN"],
+    });
+    const res = await app.inject({
+      method: "PUT",
+      url: `/v1/users/${target.id}/roles`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { roles: ["SUPERUSER"] },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("VALIDATION_ERROR");
+  });
+
+  it("returns 404 when updating roles of a missing user", async () => {
+    const adminToken = app.jwt.sign({
+      sub: "admin-1",
+      email: "admin@example.com",
+      roles: ["ADMIN"],
+    });
+    const res = await app.inject({
+      method: "PUT",
+      url: "/v1/users/does-not-exist/roles",
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { roles: ["AUTHOR"] },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("forbids non-admins from updating roles", async () => {
+    const editorToken = app.jwt.sign({
+      sub: "editor-1",
+      email: "editor@example.com",
+      roles: ["EDITOR"],
+    });
+    const res = await app.inject({
+      method: "PUT",
+      url: "/v1/users/some-id/roles",
+      headers: { authorization: `Bearer ${editorToken}` },
+      payload: { roles: ["ADMIN"] },
+    });
+    expect(res.statusCode).toBe(403);
+  });
 });

@@ -13,7 +13,9 @@ export interface UserStore {
   findByEmail(email: string): Promise<StoredUser | null>;
   findById(id: string): Promise<StoredUser | null>;
   listByRole(role: UserRole): Promise<StoredUser[]>;
+  listAll(): Promise<StoredUser[]>;
   create(input: Omit<StoredUser, "id">): Promise<StoredUser>;
+  updateRoles(id: string, roles: UserRole[]): Promise<StoredUser>;
 }
 
 export class InMemoryUserStore implements UserStore {
@@ -34,9 +36,22 @@ export class InMemoryUserStore implements UserStore {
     return [...this.byId.values()].filter((user) => user.roles.includes(role));
   }
 
+  async listAll(): Promise<StoredUser[]> {
+    return [...this.byId.values()];
+  }
+
   async create(input: Omit<StoredUser, "id">): Promise<StoredUser> {
     const user: StoredUser = { id: randomUUID(), ...input };
     this.byId.set(user.id, user);
     return user;
   }
+
+  async updateRoles(id: string, roles: UserRole[]): Promise<StoredUser> {
+    const user = this.byId.get(id);
+    if (!user) throw new Error("User not found");
+    const updated = { ...user, roles };
+    this.byId.set(id, updated);
+    return updated;
+  }
 }
+

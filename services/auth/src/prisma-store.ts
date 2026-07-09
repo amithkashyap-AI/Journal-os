@@ -20,6 +20,12 @@ export class PrismaUserStore implements UserStore {
     });
   }
 
+  async listAll(): Promise<StoredUser[]> {
+    return this.db.user.findMany({
+      orderBy: { email: "asc" },
+    });
+  }
+
   async create(input: Omit<StoredUser, "id">): Promise<StoredUser> {
     return this.db.user.create({
       data: {
@@ -30,4 +36,12 @@ export class PrismaUserStore implements UserStore {
       },
     });
   }
+
+  async updateRoles(id: string, roles: UserRole[]): Promise<StoredUser> {
+    return this.db.user.update({
+      where: { id },
+      data: { roles },
+    });
+  }
 }
+
