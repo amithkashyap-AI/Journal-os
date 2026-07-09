@@ -1,0 +1,52 @@
+"use client";
+
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { loginSchema, type LoginInput } from "@rpos/validation";
+import { LogIn } from "lucide-react";
+import { Button, Input, Label } from "@rpos/ui";
+import { login } from "../../lib/auth-actions";
+
+export function LoginForm() {
+  const [serverError, setServerError] = useState<string>();
+  const {
+    register: field,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
+
+  async function onSubmit(values: LoginInput) {
+    setServerError(undefined);
+    const result = await login(values);
+    if (result?.error) setServerError(result.error);
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      {serverError && (
+        <p className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {serverError}
+        </p>
+      )}
+      <div className="space-y-1.5">
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" type="email" autoComplete="email" {...field("email")} />
+        {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          autoComplete="current-password"
+          {...field("password")}
+        />
+        {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+      </div>
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <LogIn /> {isSubmitting ? "Signing in…" : "Sign in"}
+      </Button>
+    </form>
+  );
+}
