@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { UserRole } from "@rpos/types";
 
 export type NotificationStatus = "PENDING" | "SENT" | "FAILED";
 
@@ -20,8 +21,14 @@ export interface Recipient {
   name: string;
 }
 
+export interface RoleRecipient extends Recipient {
+  userId: string;
+}
+
 export interface NotificationStore {
   resolveRecipient(userId: string): Promise<Recipient | null>;
+  /** Everyone currently holding any of the given roles (deduped) — for role-broadcast notifications. */
+  resolveRecipientsByRole(roles: UserRole | UserRole[]): Promise<RoleRecipient[]>;
   create(data: {
     userId: string;
     type: string;
@@ -39,14 +46,22 @@ export interface NotificationStore {
 
 export class InMemoryNotificationStore implements NotificationStore {
   private readonly byId = new Map<string, StoredNotification>();
-  private readonly recipients = new Map<string, Recipient>();
+  private readonly recipients = new Map<string, Recipient & { roles: UserRole[] }>();
 
-  addRecipient(userId: string, recipient: Recipient): void {
-    this.recipients.set(userId, recipient);
+  addRecipient(userId: string, recipient: Recipient, roles: UserRole[] = []): void {
+    this.recipients.set(userId, { ...recipient, roles });
   }
 
   async resolveRecipient(userId: string): Promise<Recipient | null> {
-    return this.recipients.get(userId) ?? null;
+    const recipient = this.recipients.get(userId);
+    return recipient ? { email: recipient.email, name: recipient.name } : null;
+  }
+
+  async resolveRecipientsByRole(roles: UserRole | UserRole[]): Promise<RoleRecipient[]> {
+    const targets = Array.isArray(roles) ? roles : [roles];
+    return [...this.recipients.entries()]
+      .filter(([, recipient]) => recipient.roles.some((role) => targets.includes(role)))
+      .map(([userId, recipient]) => ({ userId, email: recipient.email, name: recipient.name }));
   }
 
   async create(data: {

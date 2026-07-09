@@ -17,7 +17,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@rpos/logger": "workspace:*"
+    "@rpos/logger": "workspace:*",
+    "@rpos/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.7",

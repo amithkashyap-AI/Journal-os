@@ -1,4 +1,9 @@
-export const NOTIFICATION_TYPES = ["SUBMISSION_DECISION", "REVIEW_ASSIGNED"] as const;
+export const NOTIFICATION_TYPES = [
+  "SUBMISSION_DECISION",
+  "REVIEW_ASSIGNED",
+  "SUBMISSION_SUBMITTED",
+  "REVIEW_FILED",
+] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -35,6 +40,19 @@ export function render(type: NotificationType, data: Record<string, unknown>): R
       return {
         subject: `Review requested: "${title}"`,
         body: `You have been asked to review "${title}".${due} Sign in to accept and file your review.`,
+      };
+    }
+    case "SUBMISSION_SUBMITTED": {
+      return {
+        subject: `New submission: "${title}"`,
+        body: `"${title}" has been submitted and is ready for editorial triage. Sign in to start the review.`,
+      };
+    }
+    case "REVIEW_FILED": {
+      const recommendation = typeof data.recommendation === "string" ? data.recommendation : "a";
+      return {
+        subject: `Review filed for "${title}"`,
+        body: `A reviewer filed a ${recommendation.replaceAll("_", " ").toLowerCase()} recommendation for "${title}". Sign in to see the comments and record a decision.`,
       };
     }
   }

@@ -458,6 +458,9 @@ importers:
       '@rpos/logger':
         specifier: workspace:*
         version: link:../logger
+      '@rpos/types':
+        specifier: workspace:*
+        version: link:../types
     devDependencies:
       '@types/node':
         specifier: ^22.10.7
@@ -769,6 +772,9 @@ importers:
       '@rpos/utils':
         specifier: workspace:*
         version: link:../../packages/utils
+      '@rpos/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
       fastify:
         specifier: ^5.2.1
         version: 5.10.0

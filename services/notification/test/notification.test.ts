@@ -172,4 +172,94 @@ describe("notification service", () => {
     const res = await app.inject({ method: "POST", url: "/v1/notifications/read-all" });
     expect(res.statusCode).toBe(401);
   });
+
+  it("broadcasts a role-targeted notification to every user with that role", async () => {
+    store.addRecipient("editor-1", { email: "e1@example.com", name: "Editor One" }, ["EDITOR"]);
+    store.addRecipient("editor-2", { email: "e2@example.com", name: "Editor Two" }, ["EDITOR"]);
+
+    const res = await notify({
+      role: "EDITOR",
+      type: "SUBMISSION_SUBMITTED",
+      data: { title: "On Computable Numbers" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().notifications).toHaveLength(2);
+    expect(res.json().notifications.every((n: { status: string }) => n.status === "SENT")).toBe(
+      true,
+    );
+    expect(mailer.sent.map((m) => m.to).sort()).toEqual(["e1@example.com", "e2@example.com"]);
+
+    // author-1 (AUTHOR role, no roles registered) never gets it.
+    const feed = await app.inject({
+      method: "GET",
+      url: "/v1/notifications",
+      headers: {
+        authorization: `Bearer ${app.jwt.sign({ sub: "author-1", email: "ada@example.com", roles: ["AUTHOR"] })}`,
+      },
+    });
+    expect(feed.json().notifications).toHaveLength(0);
+
+    const editorFeed = await app.inject({
+      method: "GET",
+      url: "/v1/notifications",
+      headers: {
+        authorization: `Bearer ${app.jwt.sign({ sub: "editor-1", email: "e1@example.com", roles: ["EDITOR"] })}`,
+      },
+    });
+    expect(editorFeed.json().notifications).toHaveLength(1);
+  });
+
+  it("succeeds with zero notifications when no one holds the target role", async () => {
+    const res = await notify({ role: "PUBLISHER", type: "SUBMISSION_SUBMITTED", data: {} });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().notifications).toEqual([]);
+  });
+
+  it("rejects a payload with both userId and role, or neither", async () => {
+    const both = await notify({
+      userId: "author-1",
+      role: "EDITOR",
+      type: "SUBMISSION_SUBMITTED",
+      data: {},
+    });
+    expect(both.statusCode).toBe(400);
+
+    const neither = await notify({ type: "SUBMISSION_SUBMITTED", data: {} });
+    expect(neither.statusCode).toBe(400);
+  });
+
+  it("renders REVIEW_FILED with the recommendation and submission title", async () => {
+    store.addRecipient("editor-1", { email: "e1@example.com", name: "Editor One" }, ["EDITOR"]);
+    const res = await notify({
+      role: "EDITOR",
+      type: "REVIEW_FILED",
+      data: { title: "On Computable Numbers", recommendation: "MINOR_REVISION" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(mailer.sent[0]?.subject).toContain("On Computable Numbers");
+    expect(mailer.sent[0]?.text).toContain("minor revision");
+  });
+
+  it("broadcasts to multiple roles at once, deduping a user who holds both", async () => {
+    store.addRecipient("editor-1", { email: "e1@example.com", name: "Editor One" }, ["EDITOR"]);
+    store.addRecipient("admin-1", { email: "a1@example.com", name: "Admin One" }, ["ADMIN"]);
+    store.addRecipient(
+      "dual-1",
+      { email: "d1@example.com", name: "Dual Role" },
+      ["EDITOR", "ADMIN"],
+    );
+
+    const res = await notify({
+      role: ["EDITOR", "ADMIN"],
+      type: "SUBMISSION_SUBMITTED",
+      data: { title: "On Computable Numbers" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().notifications).toHaveLength(3);
+    expect(mailer.sent.map((m) => m.to).sort()).toEqual([
+      "a1@example.com",
+      "d1@example.com",
+      "e1@example.com",
+    ]);
+  });
 });

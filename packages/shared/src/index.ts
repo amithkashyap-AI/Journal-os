@@ -1,10 +1,21 @@
 import { createLogger } from "@rpos/logger";
+import type { UserRole } from "@rpos/types";
 
-export interface NotificationEvent {
-  userId: string;
-  type: "SUBMISSION_DECISION" | "REVIEW_ASSIGNED";
-  data: Record<string, unknown>;
-}
+type NotificationType =
+  | "SUBMISSION_DECISION"
+  | "REVIEW_ASSIGNED"
+  | "SUBMISSION_SUBMITTED"
+  | "REVIEW_FILED";
+
+export type NotificationEvent =
+  | { userId: string; role?: never; type: NotificationType; data: Record<string, unknown> }
+  | {
+      /** Broadcasts to everyone holding any of these roles (deduped if a user holds more than one). */
+      role: UserRole | UserRole[];
+      userId?: never;
+      type: NotificationType;
+      data: Record<string, unknown>;
+    };
 
 export interface Notifier {
   /** Fire-and-forget: implementations must never throw. */

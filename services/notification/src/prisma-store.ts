@@ -1,5 +1,6 @@
 import { getPrisma } from "@rpos/database";
-import type { NotificationStore, Recipient, StoredNotification } from "./store.js";
+import type { UserRole } from "@rpos/types";
+import type { NotificationStore, Recipient, RoleRecipient, StoredNotification } from "./store.js";
 
 export class PrismaNotificationStore implements NotificationStore {
   private readonly db = getPrisma();
@@ -9,6 +10,15 @@ export class PrismaNotificationStore implements NotificationStore {
       where: { id: userId },
       select: { email: true, name: true },
     });
+  }
+
+  async resolveRecipientsByRole(roles: UserRole | UserRole[]): Promise<RoleRecipient[]> {
+    const targets = Array.isArray(roles) ? roles : [roles];
+    const users = await this.db.user.findMany({
+      where: { roles: { hasSome: targets } },
+      select: { id: true, email: true, name: true },
+    });
+    return users.map((user) => ({ userId: user.id, email: user.email, name: user.name }));
   }
 
   async create(data: {
