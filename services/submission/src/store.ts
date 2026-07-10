@@ -10,6 +10,7 @@ export interface StoredSubmission {
   keywords: string[];
   status: SubmissionStatus;
   manuscriptUrl: string | null;
+  doi: string | null;
   submittedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -27,6 +28,7 @@ export interface SubmissionPatch {
   status?: SubmissionStatus;
   submittedAt?: Date;
   manuscriptUrl?: string;
+  doi?: string;
 }
 
 export interface ApiKeyLookup {
@@ -132,6 +134,7 @@ export class InMemorySubmissionStore implements SubmissionStore {
       ...data,
       status: "DRAFT",
       manuscriptUrl: null,
+      doi: null,
       submittedAt: null,
       createdAt: now,
       updatedAt: now,

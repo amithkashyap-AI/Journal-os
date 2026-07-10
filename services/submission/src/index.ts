@@ -11,6 +11,7 @@ const env = loadEnv(
     JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
     NOTIFICATION_API_URL: z.string().url().optional(),
     INTERNAL_API_SECRET: z.string().min(16).optional(),
+    DOI_PREFIX: z.string().min(1).optional(),
   }),
 );
 
@@ -18,6 +19,7 @@ const app = buildApp({
   submissions: new PrismaSubmissionStore(),
   jwtSecret: env.JWT_SECRET,
   notifier: createNotifier(env),
+  doiPrefix: env.DOI_PREFIX,
   logger: true,
 });
 

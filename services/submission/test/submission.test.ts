@@ -284,6 +284,55 @@ describe("submission service", () => {
     const publish = await act(draft.id, "publish", "pub-1", ["PUBLISHER"]);
     expect(publish.statusCode).toBe(200);
     expect(publish.json().submission.status).toBe("PUBLISHED");
+    expect(publish.json().submission.doi).toMatch(/^10\.5555\/rpos\.\d{4}\.[a-z0-9]{10}$/);
+  });
+
+  it("assigns a doi using the configured prefix only when publishing", async () => {
+    const customApp = buildApp({
+      submissions: store,
+      jwtSecret: "test-secret-at-least-16",
+      notifier,
+      doiPrefix: "10.9999",
+    });
+    await customApp.ready();
+
+    const draft = await createDraft("author-1");
+    store.setJournalOwner(draft.journalId, "pub-1");
+
+    const beforePublish = await customApp.inject({
+      method: "GET",
+      url: `/v1/submissions/${draft.id}`,
+      headers: authHeader("author-1", ["AUTHOR"]),
+    });
+    expect(beforePublish.json().submission.doi).toBeNull();
+
+    await customApp.inject({
+      method: "POST",
+      url: `/v1/submissions/${draft.id}/actions`,
+      headers: authHeader("author-1", ["AUTHOR"]),
+      payload: { action: "submit" },
+    });
+    await customApp.inject({
+      method: "POST",
+      url: `/v1/submissions/${draft.id}/actions`,
+      headers: authHeader("editor-1", ["EDITOR"]),
+      payload: { action: "start_review" },
+    });
+    await customApp.inject({
+      method: "POST",
+      url: `/v1/submissions/${draft.id}/actions`,
+      headers: authHeader("editor-1", ["EDITOR"]),
+      payload: { action: "accept" },
+    });
+    const publish = await customApp.inject({
+      method: "POST",
+      url: `/v1/submissions/${draft.id}/actions`,
+      headers: authHeader("pub-1", ["PUBLISHER"]),
+      payload: { action: "publish" },
+    });
+    expect(publish.json().submission.doi).toMatch(/^10\.9999\/rpos\.\d{4}\.[a-z0-9]{10}$/);
+
+    await customApp.close();
   });
 
   it("notifies the owning publisher when a submission is accepted", async () => {
@@ -404,6 +453,7 @@ describe("submission service", () => {
       });
       expect(res.statusCode).toBe(200);
       expect(res.json().submission.status).toBe("PUBLISHED");
+      expect(res.json().submission.doi).toMatch(/^10\.5555\/rpos\.\d{4}\.[a-z0-9]{10}$/);
     });
 
     it("404s /publish for a submission under a journal this key doesn't own", async () => {

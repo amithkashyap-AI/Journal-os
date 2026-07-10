@@ -54,3 +54,14 @@ export async function findFreePort(preferred?: number, host = "0.0.0.0"): Promis
   }
   return osAssignedPort(host);
 }
+
+/**
+ * Deterministic DOI for a newly published submission: `<prefix>/rpos.<year>.<suffix>`,
+ * where suffix derives from the submission's own id so it's stable and unique
+ * without a separate counter or registry round-trip.
+ */
+export function generateDoi(prefix: string, submissionId: string): string {
+  const suffix = submissionId.replace(/[^a-z0-9]/gi, "").slice(0, 10).toLowerCase();
+  const year = new Date().getFullYear();
+  return `${prefix}/rpos.${year}.${suffix}`;
+}

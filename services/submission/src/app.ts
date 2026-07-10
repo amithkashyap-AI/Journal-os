@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createSubmissionSchema } from "@rpos/validation";
 import { applyTransition, allowedActions, SUBMISSION_ACTIONS } from "@rpos/workflow-engine";
 import { NoopNotifier, type Notifier } from "@rpos/shared";
+import { generateDoi } from "@rpos/utils";
 import type { JwtPayload, UserRole } from "@rpos/types";
 import type { SubmissionStore } from "./store.js";
 
@@ -24,6 +25,8 @@ export interface AppOptions {
   submissions: SubmissionStore;
   jwtSecret: string;
   notifier?: Notifier;
+  /** DOI registrant prefix, e.g. "10.5555" (the DOI Foundation's reserved test prefix). */
+  doiPrefix?: string;
   logger?: boolean;
 }
 
@@ -52,6 +55,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
   const { submissions } = options;
   const notifier = options.notifier ?? new NoopNotifier();
+  const doiPrefix = options.doiPrefix ?? "10.5555";
 
   app.register(fastifyJwt, { secret: options.jwtSecret });
 
@@ -196,6 +200,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
       const updated = await submissions.update(submission.id, {
         status: result.status,
         ...(parsed.data.action === "submit" ? { submittedAt: new Date() } : {}),
+        ...(parsed.data.action === "publish" && !submission.doi
+          ? { doi: generateDoi(doiPrefix, submission.id) }
+          : {}),
       });
 
       if (AUTHOR_NOTIFY_ACTIONS.has(parsed.data.action)) {
@@ -272,7 +279,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
 
     void submissions.touchApiKeyLastUsed(auth.apiKeyId);
-    const updated = await submissions.update(submission.id, { status: result.status });
+    const updated = await submissions.update(submission.id, {
+      status: result.status,
+      ...(submission.doi ? {} : { doi: generateDoi(doiPrefix, submission.id) }),
+    });
 
     void notifier.notify({
       userId: submission.authorId,
