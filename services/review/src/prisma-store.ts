@@ -14,8 +14,40 @@ export class PrismaReviewStore implements ReviewStore {
   async findSubmission(id: string): Promise<SubmissionInfo | null> {
     return this.db.submission.findUnique({
       where: { id },
-      select: { id: true, status: true, title: true },
+      select: { id: true, journalId: true, status: true, title: true },
     });
+  }
+
+  async isPublisherEditorMember(journalId: string, userId: string): Promise<boolean> {
+    const count = await this.db.publisherMember.count({
+      where: { userId, role: "EDITOR", publisher: { journals: { some: { id: journalId } } } },
+    });
+    return count > 0;
+  }
+
+  async isPublisherReviewerMember(journalId: string, userId: string): Promise<boolean> {
+    const count = await this.db.publisherMember.count({
+      where: { userId, role: "REVIEWER", publisher: { journals: { some: { id: journalId } } } },
+    });
+    return count > 0;
+  }
+
+  async listForEditorMember(userId: string, submissionId?: string): Promise<StoredReview[]> {
+    return this.db.review.findMany({
+      where: {
+        ...(submissionId ? { submissionId } : {}),
+        submission: { journal: { publisher: { members: { some: { userId, role: "EDITOR" } } } } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async listEditorMemberIds(journalId: string): Promise<string[]> {
+    const members = await this.db.publisherMember.findMany({
+      where: { role: "EDITOR", publisher: { journals: { some: { id: journalId } } } },
+      select: { userId: true },
+    });
+    return members.map((m) => m.userId);
   }
 
   async create(data: CreateReviewData): Promise<StoredReview> {

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { assignReviewerSchema, submitReviewSchema } from "@rpos/validation";
 import { NoopNotifier, type Notifier } from "@rpos/shared";
 import type { JwtPayload, UserRole } from "@rpos/types";
-import type { ReviewStore } from "./store.js";
+import type { ReviewStore, StoredReview } from "./store.js";
 
 declare module "@fastify/jwt" {
   interface FastifyJWT {
@@ -35,16 +35,22 @@ function hasAnyRole(user: JwtPayload, ...roles: UserRole[]): boolean {
   return user.roles.some((role) => roles.includes(role));
 }
 
-const STAFF_ROLES: UserRole[] = ["EDITOR", "ADMIN"];
-
-function isStaff(user: JwtPayload): boolean {
-  return hasAnyRole(user, ...STAFF_ROLES);
+function isAdmin(user: JwtPayload): boolean {
+  return hasAnyRole(user, "ADMIN");
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
   const { reviews } = options;
   const notifier = options.notifier ?? new NoopNotifier();
+
+  // ADMIN is the platform-wide bypass; EDITOR is tenant-scoped — an editor
+  // can only see/act on reviews under journals their publisher owns.
+  async function canEditorAccessReview(review: StoredReview, user: JwtPayload): Promise<boolean> {
+    if (!hasAnyRole(user, "EDITOR")) return false;
+    const submission = await reviews.findSubmission(review.submissionId);
+    return submission !== null && (await reviews.isPublisherEditorMember(submission.journalId, user.sub));
+  }
 
   app.register(fastifyJwt, { secret: options.jwtSecret });
 
@@ -66,10 +72,6 @@ export function buildApp(options: AppOptions): FastifyInstance {
     "/v1/submissions/:submissionId/reviews",
     { onRequest: [app.authenticate] },
     async (request, reply) => {
-      if (!isStaff(request.user)) {
-        return reply.code(403).send({ error: "FORBIDDEN" });
-      }
-
       const parsed = assignReviewerSchema.safeParse(request.body);
       if (!parsed.success) {
         return reply.code(400).send({
@@ -82,8 +84,30 @@ export function buildApp(options: AppOptions): FastifyInstance {
       if (!submission) {
         return reply.code(404).send({ error: "SUBMISSION_NOT_FOUND" });
       }
+
+      // The assigner must be an editor member of THIS journal's publisher,
+      // not merely hold the EDITOR role anywhere.
+      const canAssign =
+        isAdmin(request.user) ||
+        (hasAnyRole(request.user, "EDITOR") &&
+          (await reviews.isPublisherEditorMember(submission.journalId, request.user.sub)));
+      if (!canAssign) {
+        return reply.code(403).send({ error: "FORBIDDEN" });
+      }
+
       if (!ASSIGNABLE_STATUSES.includes(submission.status)) {
         return reply.code(409).send({ error: "INVALID_SUBMISSION_STATE" });
+      }
+
+      // The assignee must themselves be a reviewer member of this same
+      // publisher — otherwise an editor could assign someone with no
+      // relationship to this tenant at all. ADMIN may assign anyone (e.g.
+      // ahead of a publisher onboarding its own reviewer roster).
+      const eligible =
+        isAdmin(request.user) ||
+        (await reviews.isPublisherReviewerMember(submission.journalId, parsed.data.reviewerId));
+      if (!eligible) {
+        return reply.code(409).send({ error: "REVIEWER_NOT_ELIGIBLE" });
       }
 
       const existing = await reviews.list({
@@ -116,10 +140,17 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(400).send({ error: "VALIDATION_ERROR" });
     }
 
-    const filter = isStaff(request.user)
-      ? { submissionId: parsed.data.submissionId }
-      : { reviewerId: request.user.sub, submissionId: parsed.data.submissionId };
-    return reply.send({ reviews: await reviews.list(filter) });
+    if (isAdmin(request.user)) {
+      return reply.send({ reviews: await reviews.list({ submissionId: parsed.data.submissionId }) });
+    }
+    if (hasAnyRole(request.user, "EDITOR")) {
+      return reply.send({
+        reviews: await reviews.listForEditorMember(request.user.sub, parsed.data.submissionId),
+      });
+    }
+    return reply.send({
+      reviews: await reviews.list({ reviewerId: request.user.sub, submissionId: parsed.data.submissionId }),
+    });
   });
 
   app.get<{ Params: { id: string } }>(
@@ -127,7 +158,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
     { onRequest: [app.authenticate] },
     async (request, reply) => {
       const review = await reviews.findById(request.params.id);
-      if (!review || (review.reviewerId !== request.user.sub && !isStaff(request.user))) {
+      const canRead =
+        review !== null &&
+        (review.reviewerId === request.user.sub ||
+          isAdmin(request.user) ||
+          (await canEditorAccessReview(review, request.user)));
+      if (!review || !canRead) {
         return reply.code(404).send({ error: "NOT_FOUND" });
       }
       return reply.send({ review });
@@ -139,7 +175,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
     { onRequest: [app.authenticate] },
     async (request, reply) => {
       const review = await reviews.findById(request.params.id);
-      if (!review || (review.reviewerId !== request.user.sub && !isStaff(request.user))) {
+      const canRead =
+        review !== null &&
+        (review.reviewerId === request.user.sub ||
+          isAdmin(request.user) ||
+          (await canEditorAccessReview(review, request.user)));
+      if (!review || !canRead) {
         return reply.code(404).send({ error: "NOT_FOUND" });
       }
       // Staff can see the review but only the assigned reviewer may file it
@@ -166,11 +207,22 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
       const submission = await reviews.findSubmission(review.submissionId);
       if (submission) {
+        // Same tenant-scoping as REVIEW_ASSIGNED's notification: ADMIN stays
+        // a platform-wide broadcast, EDITOR is scoped to this journal's
+        // actual publisher members via the store, not every editor globally.
         void notifier.notify({
-          role: STAFF_ROLES,
+          role: ["ADMIN"],
           type: "REVIEW_FILED",
           data: { title: submission.title, recommendation: parsed.data.recommendation },
         });
+        const editorIds = await reviews.listEditorMemberIds(submission.journalId);
+        for (const userId of editorIds) {
+          void notifier.notify({
+            userId,
+            type: "REVIEW_FILED",
+            data: { title: submission.title, recommendation: parsed.data.recommendation },
+          });
+        }
       }
 
       return reply.send({ review: updated });

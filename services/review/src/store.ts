@@ -15,6 +15,7 @@ export interface StoredReview {
 
 export interface SubmissionInfo {
   id: string;
+  journalId: string;
   status: SubmissionStatus;
   title: string;
 }
@@ -42,18 +43,79 @@ export interface ReviewStore {
   findById(id: string): Promise<StoredReview | null>;
   list(filter: ReviewFilter): Promise<StoredReview[]>;
   update(id: string, patch: ReviewPatch): Promise<StoredReview>;
+  /** Whether the given user is an EDITOR member of the publisher behind this journal. */
+  isPublisherEditorMember(journalId: string, userId: string): Promise<boolean>;
+  /** Whether the given user is a REVIEWER member of the publisher behind this journal. */
+  isPublisherReviewerMember(journalId: string, userId: string): Promise<boolean>;
+  /** Reviews visible to an editor: only those under journals of publishers they're a member of. */
+  listForEditorMember(userId: string, submissionId?: string): Promise<StoredReview[]>;
+  /** userIds of every EDITOR member of the publisher behind this journal (for scoped notification). */
+  listEditorMemberIds(journalId: string): Promise<string[]>;
 }
 
 export class InMemoryReviewStore implements ReviewStore {
   private readonly reviews = new Map<string, StoredReview>();
   private readonly submissions = new Map<string, SubmissionInfo>();
+  private readonly editorMembers = new Map<string, Set<string>>(); // publisherId -> userIds
+  private readonly reviewerMembers = new Map<string, Set<string>>(); // publisherId -> userIds
+  private readonly journalPublishers = new Map<string, string>(); // journalId -> publisherId
 
   addSubmission(submission: SubmissionInfo): void {
     this.submissions.set(submission.id, submission);
   }
 
+  /** Test helper mirroring Journal.publisherId for a given journalId. */
+  setJournalPublisher(journalId: string, publisherId: string): void {
+    this.journalPublishers.set(journalId, publisherId);
+  }
+
+  /** Test helper mirroring a PublisherMember(role: EDITOR) row. */
+  addEditorMember(publisherId: string, userId: string): void {
+    const set = this.editorMembers.get(publisherId) ?? new Set<string>();
+    set.add(userId);
+    this.editorMembers.set(publisherId, set);
+  }
+
+  /** Test helper mirroring a PublisherMember(role: REVIEWER) row. */
+  addReviewerMember(publisherId: string, userId: string): void {
+    const set = this.reviewerMembers.get(publisherId) ?? new Set<string>();
+    set.add(userId);
+    this.reviewerMembers.set(publisherId, set);
+  }
+
   async findSubmission(id: string): Promise<SubmissionInfo | null> {
     return this.submissions.get(id) ?? null;
+  }
+
+  async isPublisherEditorMember(journalId: string, userId: string): Promise<boolean> {
+    const publisherId = this.journalPublishers.get(journalId);
+    if (!publisherId) return false;
+    return this.editorMembers.get(publisherId)?.has(userId) ?? false;
+  }
+
+  async isPublisherReviewerMember(journalId: string, userId: string): Promise<boolean> {
+    const publisherId = this.journalPublishers.get(journalId);
+    if (!publisherId) return false;
+    return this.reviewerMembers.get(publisherId)?.has(userId) ?? false;
+  }
+
+  async listForEditorMember(userId: string, submissionId?: string): Promise<StoredReview[]> {
+    const memberPublisherIds = new Set(
+      [...this.editorMembers.entries()].filter(([, users]) => users.has(userId)).map(([id]) => id),
+    );
+    return [...this.reviews.values()].filter((review) => {
+      if (submissionId !== undefined && review.submissionId !== submissionId) return false;
+      const submission = this.submissions.get(review.submissionId);
+      if (!submission) return false;
+      const publisherId = this.journalPublishers.get(submission.journalId);
+      return publisherId !== undefined && memberPublisherIds.has(publisherId);
+    });
+  }
+
+  async listEditorMemberIds(journalId: string): Promise<string[]> {
+    const publisherId = this.journalPublishers.get(journalId);
+    if (!publisherId) return [];
+    return [...(this.editorMembers.get(publisherId) ?? [])];
   }
 
   async create(data: CreateReviewData): Promise<StoredReview> {
