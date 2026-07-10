@@ -115,6 +115,20 @@ export default async function SubmissionPage({
         description={`Manuscript ID: ${submission.id}`}
       />
 
+      {submission.doi && (
+        <div className="rounded-lg border border-border/60 bg-secondary/20 px-4 py-3 text-sm">
+          <span className="font-medium text-foreground">DOI:</span>{" "}
+          <a
+            href={`https://doi.org/${submission.doi}`}
+            target="_blank"
+            rel="noreferrer"
+            className="font-mono text-primary hover:underline"
+          >
+            {submission.doi}
+          </a>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left Side: Overview & Manuscript Details */}
         <div className="lg:col-span-2 space-y-6">

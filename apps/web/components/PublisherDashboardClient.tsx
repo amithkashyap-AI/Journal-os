@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Building2, BookPlus, Send, Inbox } from "lucide-react";
+import { Building2, BookPlus, Send, Inbox, BadgeCheck } from "lucide-react";
 import { EmptyState } from "@rpos/ui";
 import { Button } from "./ui/button";
 import {
@@ -26,6 +26,13 @@ interface ReadyToPublish {
   id: string;
   title: string;
   journalTitle: string;
+}
+
+interface RecentlyPublished {
+  id: string;
+  title: string;
+  journalTitle: string;
+  doi: string;
 }
 
 const publisherFormSchema = z.object({
@@ -187,10 +194,12 @@ export function PublisherDashboardClient({
   initialPublishers,
   initialJournals,
   initialReadyToPublish,
+  initialRecentlyPublished,
 }: {
   initialPublishers: PublisherDto[];
   initialJournals: JournalDto[];
   initialReadyToPublish: ReadyToPublish[];
+  initialRecentlyPublished: RecentlyPublished[];
 }) {
   const [publishers, setPublishers] = useState(initialPublishers);
   const [journals, setJournals] = useState(initialJournals);
@@ -248,6 +257,39 @@ export function PublisherDashboardClient({
             )}
           </CardContent>
         </Card>
+
+        {initialRecentlyPublished.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <BadgeCheck className="size-5 text-primary" /> Recently published
+              </CardTitle>
+              <CardDescription>Live manuscripts with an assigned DOI.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-y divide-border/40">
+                {initialRecentlyPublished.map((submission) => (
+                  <li key={submission.id} className="py-3.5 first:pt-0 last:pb-0">
+                    <p className="truncate font-medium text-sm">{submission.title}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {submission.journalTitle}
+                      </span>
+                      <a
+                        href={`https://doi.org/${submission.doi}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-mono text-xs text-primary hover:underline"
+                      >
+                        {submission.doi}
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

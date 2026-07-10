@@ -36,6 +36,14 @@ export default async function PublisherDashboardPage() {
       ...s,
       journalTitle: myJournals.find((j) => j.id === s.journalId)?.title ?? "Unknown journal",
     }));
+  const recentlyPublished = submissions
+    .filter((s) => s.status === "PUBLISHED" && myJournalIds.has(s.journalId) && s.doi)
+    .map((s) => ({
+      id: s.id,
+      title: s.title,
+      journalTitle: myJournals.find((j) => j.id === s.journalId)?.title ?? "Unknown journal",
+      doi: s.doi as string,
+    }));
 
   return (
     <div className="space-y-8">
@@ -47,6 +55,7 @@ export default async function PublisherDashboardPage() {
         initialPublishers={publishers}
         initialJournals={myJournals}
         initialReadyToPublish={readyToPublish}
+        initialRecentlyPublished={recentlyPublished}
       />
     </div>
   );
