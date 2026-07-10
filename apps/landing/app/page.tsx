@@ -42,6 +42,9 @@ function Navbar() {
           <a href="#pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             Pricing
           </a>
+          <Link href="/articles" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+            Published Research
+          </Link>
         </div>
 
         <div className="flex items-center gap-3">
