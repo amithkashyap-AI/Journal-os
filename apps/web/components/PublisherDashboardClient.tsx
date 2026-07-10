@@ -18,9 +18,10 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { NativeSelect } from "./ui/select";
 import { Textarea } from "./ui/textarea";
-import type { JournalDto, PublisherDto } from "../lib/catalog";
+import type { JournalDto, MemberDto, PublisherDto } from "../lib/catalog";
 import { createJournal, createPublisher } from "../lib/journal-actions";
 import { performSubmissionAction } from "../lib/submission-actions";
+import { TeamManager } from "./TeamManager";
 
 interface ReadyToPublish {
   id: string;
@@ -195,11 +196,13 @@ export function PublisherDashboardClient({
   initialJournals,
   initialReadyToPublish,
   initialRecentlyPublished,
+  initialMembersByPublisher,
 }: {
   initialPublishers: PublisherDto[];
   initialJournals: JournalDto[];
   initialReadyToPublish: ReadyToPublish[];
   initialRecentlyPublished: RecentlyPublished[];
+  initialMembersByPublisher: Record<string, MemberDto[]>;
 }) {
   const [publishers, setPublishers] = useState(initialPublishers);
   const [journals, setJournals] = useState(initialJournals);
@@ -290,6 +293,26 @@ export function PublisherDashboardClient({
             </CardContent>
           </Card>
         )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Team</CardTitle>
+            <CardDescription>
+              Editors and reviewers scoped to your own organization(s) — they only see and act on
+              submissions under your journals, not any other publisher's.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {publishers.map((publisher) => (
+              <TeamManager
+                key={publisher.id}
+                publisherId={publisher.id}
+                publisherName={publisher.name}
+                initialMembers={initialMembersByPublisher[publisher.id] ?? []}
+              />
+            ))}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

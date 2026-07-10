@@ -52,3 +52,19 @@ export async function fetchApiKey(publisherId: string): Promise<ApiKeyDto | null
   if (!res.ok) return null;
   return ((await res.json()) as { apiKey: ApiKeyDto }).apiKey;
 }
+
+export interface MemberDto {
+  id: string;
+  publisherId: string;
+  userId: string;
+  role: "EDITOR" | "REVIEWER";
+  email: string;
+  name: string;
+  createdAt: string;
+}
+
+export async function fetchPublisherMembers(publisherId: string): Promise<MemberDto[]> {
+  const res = await apiFetch(JOURNAL_API, `/v1/publishers/${publisherId}/members`);
+  if (!res.ok) return [];
+  return ((await res.json()) as { members: MemberDto[] }).members;
+}

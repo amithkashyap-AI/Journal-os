@@ -3,7 +3,7 @@ import type { PublicUser } from "@rpos/types";
 import { PageHeader } from "@rpos/ui";
 import { PublisherDashboardClient } from "../../components/PublisherDashboardClient";
 import { apiFetch, AUTH_API, getToken, SUBMISSION_API } from "../../lib/api";
-import { fetchJournals, fetchMyPublishers } from "../../lib/catalog";
+import { fetchJournals, fetchMyPublishers, fetchPublisherMembers } from "../../lib/catalog";
 import type { SubmissionDto } from "../../lib/dto";
 
 export default async function PublisherDashboardPage() {
@@ -45,6 +45,10 @@ export default async function PublisherDashboardPage() {
       doi: s.doi as string,
     }));
 
+  const membersByPublisher = Object.fromEntries(
+    await Promise.all(publishers.map(async (p) => [p.id, await fetchPublisherMembers(p.id)] as const)),
+  );
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -56,6 +60,7 @@ export default async function PublisherDashboardPage() {
         initialJournals={myJournals}
         initialReadyToPublish={readyToPublish}
         initialRecentlyPublished={recentlyPublished}
+        initialMembersByPublisher={membersByPublisher}
       />
     </div>
   );
