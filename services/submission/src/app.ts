@@ -6,7 +6,7 @@ import { applyTransition, allowedActions, SUBMISSION_ACTIONS } from "@rpos/workf
 import { NoopNotifier, type Notifier } from "@rpos/shared";
 import { generateDoi } from "@rpos/utils";
 import type { JwtPayload, UserRole } from "@rpos/types";
-import type { SubmissionStore } from "./store.js";
+import type { StoredSubmission, SubmissionStore } from "./store.js";
 
 declare module "@fastify/jwt" {
   interface FastifyJWT {
@@ -45,10 +45,8 @@ function hasAnyRole(user: JwtPayload, ...roles: UserRole[]): boolean {
   return user.roles.some((role) => roles.includes(role));
 }
 
-const STAFF_ROLES: UserRole[] = ["EDITOR", "ADMIN"];
-
-function isStaff(user: JwtPayload): boolean {
-  return hasAnyRole(user, ...STAFF_ROLES);
+function isAdmin(user: JwtPayload): boolean {
+  return hasAnyRole(user, "ADMIN");
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -94,19 +92,21 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get("/v1/submissions", { onRequest: [app.authenticate] }, async (request, reply) => {
-    if (isStaff(request.user)) {
+    // ADMIN is the one true platform-wide bypass; every other role is
+    // scoped to what this specific user actually authored, owns, or is a
+    // tenant member of — never a blanket "sees everything" grant.
+    if (isAdmin(request.user)) {
       return reply.send({ submissions: await submissions.listAll() });
     }
 
-    const mine = await submissions.listByAuthor(request.user.sub);
-    if (!hasAnyRole(request.user, "PUBLISHER")) {
-      return reply.send({ submissions: mine });
+    const sets: StoredSubmission[][] = [await submissions.listByAuthor(request.user.sub)];
+    if (hasAnyRole(request.user, "EDITOR")) {
+      sets.push(await submissions.listByEditorMembership(request.user.sub));
     }
-
-    // A publisher also sees submissions under journals they own (e.g. to
-    // publish accepted manuscripts), merged with anything they authored.
-    const published = await submissions.listByJournalOwner(request.user.sub);
-    const byId = new Map([...mine, ...published].map((submission) => [submission.id, submission]));
+    if (hasAnyRole(request.user, "PUBLISHER")) {
+      sets.push(await submissions.listByJournalOwner(request.user.sub));
+    }
+    const byId = new Map(sets.flat().map((submission) => [submission.id, submission]));
     return reply.send({ submissions: [...byId.values()] });
   });
 
@@ -126,7 +126,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
       const canRead =
         submission !== null &&
         (submission.authorId === request.user.sub ||
-          isStaff(request.user) ||
+          isAdmin(request.user) ||
+          (hasAnyRole(request.user, "EDITOR") &&
+            (await submissions.isPublisherEditorMember(submission.journalId, request.user.sub))) ||
           (await submissions.isAssignedReviewer(submission.id, request.user.sub)) ||
           (hasAnyRole(request.user, "PUBLISHER") &&
             (await submissions.isJournalOwner(submission.journalId, request.user.sub))));
@@ -187,7 +189,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
       const canAct =
         submission !== null &&
         (submission.authorId === request.user.sub ||
-          isStaff(request.user) ||
+          isAdmin(request.user) ||
+          (hasAnyRole(request.user, "EDITOR") &&
+            (await submissions.isPublisherEditorMember(submission.journalId, request.user.sub))) ||
           (hasAnyRole(request.user, "PUBLISHER") &&
             (await submissions.isJournalOwner(submission.journalId, request.user.sub))));
       if (!submission || !canAct) {
@@ -221,11 +225,24 @@ export function buildApp(options: AppOptions): FastifyInstance {
       }
 
       if (parsed.data.action === "submit") {
+        // ADMIN is the platform-wide bypass role and stays a broadcast;
+        // EDITOR is now tenant-scoped, so only that journal's actual
+        // publisher-member editors are notified — broadcasting to every
+        // editor on the platform would leak another tenant's submission
+        // titles to editors who can't even open the link.
         void notifier.notify({
-          role: STAFF_ROLES,
+          role: ["ADMIN"],
           type: "SUBMISSION_SUBMITTED",
           data: { title: submission.title },
         });
+        const editorIds = await submissions.listEditorMemberIds(submission.journalId);
+        for (const userId of editorIds) {
+          void notifier.notify({
+            userId,
+            type: "SUBMISSION_SUBMITTED",
+            data: { title: submission.title },
+          });
+        }
       }
 
       if (parsed.data.action === "accept") {

@@ -58,6 +58,12 @@ export interface SubmissionStore {
   isJournalOwner(journalId: string, userId: string): Promise<boolean>;
   /** The userId that owns the publisher behind this journal, if any (for notifying them). */
   findJournalOwnerId(journalId: string): Promise<string | null>;
+  /** Whether the given user is an EDITOR member of the publisher behind this journal (tenant-scoped staff access). */
+  isPublisherEditorMember(journalId: string, userId: string): Promise<boolean>;
+  /** Submissions under any journal whose publisher has this user as an EDITOR member. */
+  listByEditorMembership(userId: string): Promise<StoredSubmission[]>;
+  /** userIds of every EDITOR member of the publisher behind this journal (for scoped notification). */
+  listEditorMemberIds(journalId: string): Promise<string[]>;
   /** Resolves an x-api-key header value to the publisher it authenticates, if enabled. */
   resolveApiKey(key: string): Promise<ApiKeyLookup | null>;
   touchApiKeyLastUsed(apiKeyId: string): Promise<void>;
@@ -69,6 +75,7 @@ export class InMemorySubmissionStore implements SubmissionStore {
   private readonly journalOwners = new Map<string, string>();
   private readonly journalPublishers = new Map<string, string>();
   private readonly apiKeys = new Map<string, { apiKeyId: string; publisherId: string; enabled: boolean }>();
+  private readonly editorMembers = new Map<string, Set<string>>(); // publisherId -> userIds
 
   addReviewAssignment(submissionId: string, reviewerId: string): void {
     this.reviewAssignments.add(`${submissionId}:${reviewerId}`);
@@ -93,12 +100,41 @@ export class InMemorySubmissionStore implements SubmissionStore {
     this.apiKeys.set(key, { apiKeyId: `key-${key}`, publisherId, enabled });
   }
 
+  /** Test helper mirroring a PublisherMember(role: EDITOR) row. */
+  addEditorMember(publisherId: string, userId: string): void {
+    const set = this.editorMembers.get(publisherId) ?? new Set<string>();
+    set.add(userId);
+    this.editorMembers.set(publisherId, set);
+  }
+
   async isJournalOwner(journalId: string, userId: string): Promise<boolean> {
     return this.journalOwners.get(journalId) === userId;
   }
 
   async findJournalOwnerId(journalId: string): Promise<string | null> {
     return this.journalOwners.get(journalId) ?? null;
+  }
+
+  async isPublisherEditorMember(journalId: string, userId: string): Promise<boolean> {
+    const publisherId = this.journalPublishers.get(journalId);
+    if (!publisherId) return false;
+    return this.editorMembers.get(publisherId)?.has(userId) ?? false;
+  }
+
+  async listByEditorMembership(userId: string): Promise<StoredSubmission[]> {
+    const memberPublisherIds = new Set(
+      [...this.editorMembers.entries()].filter(([, users]) => users.has(userId)).map(([id]) => id),
+    );
+    return [...this.byId.values()].filter((submission) => {
+      const publisherId = this.journalPublishers.get(submission.journalId);
+      return publisherId !== undefined && memberPublisherIds.has(publisherId);
+    });
+  }
+
+  async listEditorMemberIds(journalId: string): Promise<string[]> {
+    const publisherId = this.journalPublishers.get(journalId);
+    if (!publisherId) return [];
+    return [...(this.editorMembers.get(publisherId) ?? [])];
   }
 
   async listByJournalOwner(ownerId: string): Promise<StoredSubmission[]> {

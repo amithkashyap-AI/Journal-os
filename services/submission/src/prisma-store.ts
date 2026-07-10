@@ -84,6 +84,28 @@ export class PrismaSubmissionStore implements SubmissionStore {
     return journal?.publisher.ownerId ?? null;
   }
 
+  async isPublisherEditorMember(journalId: string, userId: string): Promise<boolean> {
+    const count = await this.db.publisherMember.count({
+      where: { userId, role: "EDITOR", publisher: { journals: { some: { id: journalId } } } },
+    });
+    return count > 0;
+  }
+
+  async listByEditorMembership(userId: string): Promise<StoredSubmission[]> {
+    return this.db.submission.findMany({
+      where: { journal: { publisher: { members: { some: { userId, role: "EDITOR" } } } } },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async listEditorMemberIds(journalId: string): Promise<string[]> {
+    const members = await this.db.publisherMember.findMany({
+      where: { role: "EDITOR", publisher: { journals: { some: { id: journalId } } } },
+      select: { userId: true },
+    });
+    return members.map((m) => m.userId);
+  }
+
   async resolveApiKey(key: string): Promise<ApiKeyLookup | null> {
     const apiKey = await this.db.apiKey.findUnique({ where: { key } });
     if (!apiKey || !apiKey.enabled) return null;

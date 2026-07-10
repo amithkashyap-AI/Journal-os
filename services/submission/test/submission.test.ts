@@ -33,6 +33,14 @@ describe("submission service", () => {
       notifier,
     });
     await app.ready();
+
+    // Default tenant: journal-1 (the DRAFT_PAYLOAD default) belongs to
+    // pub-tenant-1, and editor-1 is a member — mirrors the real world where
+    // an editor only has authority over journals their publisher owns.
+    // Tests that remap journal-1 to a different publisher re-grant
+    // membership explicitly where needed.
+    store.setJournalPublisher("journal-1", "pub-tenant-1");
+    store.addEditorMember("pub-tenant-1", "editor-1");
   });
 
   function tokenFor(sub: string, roles: UserRole[]): string {
@@ -141,7 +149,7 @@ describe("submission service", () => {
     expect(res.json().error).toBe("INVALID_TRANSITION");
   });
 
-  it("scopes listing to the author but shows editors everything", async () => {
+  it("scopes listing to the author, and shows editors everything under their own tenant", async () => {
     await createDraft("author-1");
     await createDraft("author-2");
 
@@ -152,12 +160,60 @@ describe("submission service", () => {
     });
     expect(mine.json().submissions).toHaveLength(1);
 
+    // Both drafts are under journal-1, which belongs to pub-tenant-1 — the
+    // publisher editor-1 is a member of (set up in beforeEach) — so they
+    // legitimately see both, same as before. The next test proves the
+    // actual tenant boundary: a different publisher's editor sees neither.
     const all = await app.inject({
       method: "GET",
       url: "/v1/submissions",
       headers: authHeader("editor-1", ["EDITOR"]),
     });
     expect(all.json().submissions).toHaveLength(2);
+  });
+
+  it("isolates editor visibility per tenant: an editor of one publisher cannot see or act on another's submissions", async () => {
+    // journal-1 (default) belongs to pub-tenant-1; editor-1 is its member
+    // (beforeEach). Set up a second, entirely separate publisher/journal
+    // with its own editor.
+    store.setJournalPublisher("journal-2", "pub-tenant-2");
+    store.addEditorMember("pub-tenant-2", "editor-2");
+
+    const draftA = await createDraft("author-1"); // journal-1 / pub-tenant-1
+    await act(draftA.id, "submit", "author-1", ["AUTHOR"]);
+    const draftB = await app.inject({
+      method: "POST",
+      url: "/v1/submissions",
+      headers: authHeader("author-2", ["AUTHOR"]),
+      payload: { ...DRAFT_PAYLOAD, journalId: "journal-2" },
+    });
+    const bId = draftB.json().submission.id;
+
+    // editor-2 (tenant B) cannot list tenant A's submission.
+    const listAsB = await app.inject({
+      method: "GET",
+      url: "/v1/submissions",
+      headers: authHeader("editor-2", ["EDITOR"]),
+    });
+    const idsSeenByB = listAsB.json().submissions.map((s: { id: string }) => s.id);
+    expect(idsSeenByB).toContain(bId);
+    expect(idsSeenByB).not.toContain(draftA.id);
+
+    // editor-2 cannot read tenant A's submission directly (404, not 403).
+    const readAsB = await app.inject({
+      method: "GET",
+      url: `/v1/submissions/${draftA.id}`,
+      headers: authHeader("editor-2", ["EDITOR"]),
+    });
+    expect(readAsB.statusCode).toBe(404);
+
+    // editor-2 cannot act on tenant A's submission either.
+    const actAsB = await act(draftA.id, "start_review", "editor-2", ["EDITOR"]);
+    expect(actAsB.statusCode).toBe(404);
+
+    // ...but editor-1 (tenant A) still can.
+    const actAsA = await act(draftA.id, "start_review", "editor-1", ["EDITOR"]);
+    expect(actAsA.statusCode).toBe(200);
   });
 
   it("lets the author attach a manuscript while editable, blocks it after submit", async () => {
@@ -206,23 +262,28 @@ describe("submission service", () => {
     });
   });
 
-  it("broadcasts SUBMISSION_SUBMITTED to editors when an author submits", async () => {
+  it("notifies ADMIN plus the journal's tenant editors when an author submits", async () => {
     const draft = await createDraft("author-1");
     await act(draft.id, "submit", "author-1", ["AUTHOR"]);
 
     const submitted = notifier.events.filter((e) => e.type === "SUBMISSION_SUBMITTED");
-    expect(submitted).toHaveLength(1);
-    expect(submitted[0]).toMatchObject({
-      role: ["EDITOR", "ADMIN"],
-      type: "SUBMISSION_SUBMITTED",
-      data: { title: DRAFT_PAYLOAD.title },
-    });
+    // One platform-wide ADMIN broadcast, plus one per actual tenant editor
+    // member (editor-1, granted membership on pub-tenant-1 in beforeEach) —
+    // not a blanket EDITOR-role broadcast, which would reach every editor
+    // on the platform regardless of which publisher they belong to.
+    expect(submitted).toHaveLength(2);
+    expect(submitted).toContainEqual(
+      expect.objectContaining({ role: ["ADMIN"], data: { title: DRAFT_PAYLOAD.title } }),
+    );
+    expect(submitted).toContainEqual(
+      expect.objectContaining({ userId: "editor-1", data: { title: DRAFT_PAYLOAD.title } }),
+    );
 
-    // Resubmission after revisions also broadcasts.
+    // Resubmission after revisions also notifies.
     await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
     await act(draft.id, "request_revisions", "editor-1", ["EDITOR"]);
     await act(draft.id, "submit", "author-1", ["AUTHOR"]);
-    expect(notifier.events.filter((e) => e.type === "SUBMISSION_SUBMITTED")).toHaveLength(2);
+    expect(notifier.events.filter((e) => e.type === "SUBMISSION_SUBMITTED")).toHaveLength(4);
   });
 
   it("lets an assigned reviewer read the submission but hides it from others", async () => {
@@ -441,6 +502,7 @@ describe("submission service", () => {
     it("lets the owning publisher's key publish an accepted submission via /publish", async () => {
       const draft = await createDraft("author-1");
       store.setJournalPublisher(draft.journalId, "pub-1-org");
+      store.addEditorMember("pub-1-org", "editor-1");
       store.addApiKey("key-abc", "pub-1-org");
 
       await act(draft.id, "submit", "author-1", ["AUTHOR"]);
@@ -460,6 +522,7 @@ describe("submission service", () => {
     it("404s /publish for a submission under a journal this key doesn't own", async () => {
       const draft = await createDraft("author-1");
       store.setJournalPublisher(draft.journalId, "pub-1-org");
+      store.addEditorMember("pub-1-org", "editor-1");
       store.addApiKey("key-other", "pub-2-org");
 
       await act(draft.id, "submit", "author-1", ["AUTHOR"]);
@@ -491,6 +554,7 @@ describe("submission service", () => {
     it("rejects /publish with a disabled key", async () => {
       const draft = await createDraft("author-1");
       store.setJournalPublisher(draft.journalId, "pub-1-org");
+      store.addEditorMember("pub-1-org", "editor-1");
       store.addApiKey("key-abc", "pub-1-org", false);
 
       await act(draft.id, "submit", "author-1", ["AUTHOR"]);
