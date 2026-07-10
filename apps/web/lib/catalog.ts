@@ -36,3 +36,19 @@ export async function fetchMyPublishers(): Promise<PublisherDto[]> {
   if (!res.ok) return [];
   return ((await res.json()) as { publishers: PublisherDto[] }).publishers;
 }
+
+export interface ApiKeyDto {
+  id: string;
+  publisherId: string;
+  key: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastUsedAt: string | null;
+}
+
+export async function fetchApiKey(publisherId: string): Promise<ApiKeyDto | null> {
+  const res = await apiFetch(JOURNAL_API, `/v1/publishers/${publisherId}/api-key`);
+  if (!res.ok) return null;
+  return ((await res.json()) as { apiKey: ApiKeyDto }).apiKey;
+}
