@@ -1,11 +1,14 @@
 import { getPrisma } from "@rpos/database";
+import type { UserRole } from "@rpos/types";
 import type {
   CreateJournalData,
   CreatePublisherData,
   JournalStore,
   JournalWithPublisher,
+  MemberCandidate,
   StoredApiKey,
   StoredJournal,
+  StoredMember,
   StoredPublisher,
   UpdateJournalData,
 } from "./store.js";
@@ -94,5 +97,44 @@ export class PrismaJournalStore implements JournalStore {
 
   async touchApiKeyLastUsed(id: string): Promise<void> {
     await this.db.apiKey.update({ where: { id }, data: { lastUsedAt: new Date() } });
+  }
+
+  async listMembers(publisherId: string): Promise<StoredMember[]> {
+    const members = await this.db.publisherMember.findMany({
+      where: { publisherId },
+      include: { user: { select: { email: true, name: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+    return members.map(({ user, ...member }) => ({ ...member, email: user.email, name: user.name }));
+  }
+
+  async findUserByEmail(email: string): Promise<MemberCandidate | null> {
+    return this.db.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, name: true, roles: true },
+    });
+  }
+
+  async findMemberById(publisherId: string, memberId: string): Promise<StoredMember | null> {
+    const member = await this.db.publisherMember.findFirst({
+      where: { id: memberId, publisherId },
+      include: { user: { select: { email: true, name: true } } },
+    });
+    if (!member) return null;
+    const { user, ...rest } = member;
+    return { ...rest, email: user.email, name: user.name };
+  }
+
+  async addMember(publisherId: string, userId: string, role: UserRole): Promise<StoredMember> {
+    const member = await this.db.publisherMember.create({
+      data: { publisherId, userId, role },
+      include: { user: { select: { email: true, name: true } } },
+    });
+    const { user, ...rest } = member;
+    return { ...rest, email: user.email, name: user.name };
+  }
+
+  async removeMember(memberId: string): Promise<void> {
+    await this.db.publisherMember.delete({ where: { id: memberId } });
   }
 }

@@ -411,4 +411,143 @@ describe("journal service", () => {
       expect(disabled.json().error).toBe("INVALID_API_KEY");
     });
   });
+
+  describe("publisher team (tenant-scoped editorial staff)", () => {
+    async function createOwnedPublisher(ownerId: string, name = "Owner Press") {
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/publishers",
+        headers: authHeader(ownerId, ["PUBLISHER"]),
+        payload: { name },
+      });
+      return res.json().publisher;
+    }
+
+    it("lets the owner add, list, and remove an editor member", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+      store.setUser({ id: "editor-1", email: "editor-1@example.com", name: "Ed Itor", roles: ["EDITOR"] });
+
+      const add = await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/members`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { email: "editor-1@example.com", role: "EDITOR" },
+      });
+      expect(add.statusCode).toBe(201);
+      expect(add.json().member).toMatchObject({
+        publisherId: publisher.id,
+        userId: "editor-1",
+        role: "EDITOR",
+        email: "editor-1@example.com",
+      });
+
+      const list = await app.inject({
+        method: "GET",
+        url: `/v1/publishers/${publisher.id}/members`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(list.json().members).toHaveLength(1);
+
+      const remove = await app.inject({
+        method: "DELETE",
+        url: `/v1/publishers/${publisher.id}/members/${add.json().member.id}`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(remove.statusCode).toBe(204);
+
+      const listAfter = await app.inject({
+        method: "GET",
+        url: `/v1/publishers/${publisher.id}/members`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(listAfter.json().members).toHaveLength(0);
+    });
+
+    it("rejects adding a member who doesn't hold that role globally", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+      store.setUser({ id: "author-1", email: "author-1@example.com", name: "A. Uthor", roles: ["AUTHOR"] });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/members`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { email: "author-1@example.com", role: "EDITOR" },
+      });
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error).toBe("USER_LACKS_ROLE");
+    });
+
+    it("404s adding an unknown email", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+      const res = await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/members`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { email: "nobody@example.com", role: "EDITOR" },
+      });
+      expect(res.statusCode).toBe(404);
+      expect(res.json().error).toBe("USER_NOT_FOUND");
+    });
+
+    it("409s adding the same member with the same role twice", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+      store.setUser({ id: "editor-1", email: "editor-1@example.com", name: "Ed Itor", roles: ["EDITOR"] });
+
+      await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/members`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { email: "editor-1@example.com", role: "EDITOR" },
+      });
+      const again = await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/members`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { email: "editor-1@example.com", role: "EDITOR" },
+      });
+      expect(again.statusCode).toBe(409);
+      expect(again.json().error).toBe("MEMBER_EXISTS");
+    });
+
+    it("forbids anyone but the owner or an admin from managing members", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+      store.setUser({ id: "editor-1", email: "editor-1@example.com", name: "Ed Itor", roles: ["EDITOR"] });
+
+      const stranger = await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/members`,
+        headers: authHeader("pub-2", ["PUBLISHER"]),
+        payload: { email: "editor-1@example.com", role: "EDITOR" },
+      });
+      expect(stranger.statusCode).toBe(403);
+
+      const admin = await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/members`,
+        headers: authHeader("admin-1", ["ADMIN"]),
+        payload: { email: "editor-1@example.com", role: "EDITOR" },
+      });
+      expect(admin.statusCode).toBe(201);
+    });
+
+    it("404s removing a member that doesn't belong to this publisher", async () => {
+      const publisherA = await createOwnedPublisher("pub-1", "Press A");
+      const publisherB = await createOwnedPublisher("pub-2", "Press B");
+      store.setUser({ id: "editor-1", email: "editor-1@example.com", name: "Ed Itor", roles: ["EDITOR"] });
+
+      const add = await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisherA.id}/members`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { email: "editor-1@example.com", role: "EDITOR" },
+      });
+
+      const crossTenantRemove = await app.inject({
+        method: "DELETE",
+        url: `/v1/publishers/${publisherB.id}/members/${add.json().member.id}`,
+        headers: authHeader("pub-2", ["PUBLISHER"]),
+      });
+      expect(crossTenantRemove.statusCode).toBe(404);
+    });
+  });
 });

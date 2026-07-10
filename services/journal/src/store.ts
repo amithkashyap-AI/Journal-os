@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { UserRole } from "@rpos/types";
 
 export interface StoredPublisher {
   id: string;
@@ -56,6 +57,25 @@ export interface StoredApiKey {
   lastUsedAt: Date | null;
 }
 
+/** A publisher's tenant-scoped editorial staff (EDITOR or REVIEWER membership). */
+export interface StoredMember {
+  id: string;
+  publisherId: string;
+  userId: string;
+  role: UserRole;
+  email: string;
+  name: string;
+  createdAt: Date;
+}
+
+/** A user looked up by email, to validate before granting them membership. */
+export interface MemberCandidate {
+  id: string;
+  email: string;
+  name: string;
+  roles: UserRole[];
+}
+
 export interface JournalStore {
   listJournals(): Promise<JournalWithPublisher[]>;
   findJournalById(id: string): Promise<JournalWithPublisher | null>;
@@ -79,12 +99,26 @@ export interface JournalStore {
   setApiKeyEnabled(publisherId: string, enabled: boolean): Promise<StoredApiKey>;
   deleteApiKey(publisherId: string): Promise<void>;
   touchApiKeyLastUsed(id: string): Promise<void>;
+
+  /** Tenant-scoped editorial staff for a publisher. */
+  listMembers(publisherId: string): Promise<StoredMember[]>;
+  findUserByEmail(email: string): Promise<MemberCandidate | null>;
+  findMemberById(publisherId: string, memberId: string): Promise<StoredMember | null>;
+  addMember(publisherId: string, userId: string, role: UserRole): Promise<StoredMember>;
+  removeMember(memberId: string): Promise<void>;
 }
 
 export class InMemoryJournalStore implements JournalStore {
   private readonly journals = new Map<string, StoredJournal>();
   private readonly publishers = new Map<string, StoredPublisher>();
   private readonly apiKeys = new Map<string, StoredApiKey>(); // keyed by publisherId
+  private readonly users = new Map<string, MemberCandidate>();
+  private readonly members = new Map<string, StoredMember>();
+
+  /** Test helper mirroring a User row, since this store has no User table of its own. */
+  setUser(candidate: MemberCandidate): void {
+    this.users.set(candidate.id, candidate);
+  }
 
   private withPublisher(journal: StoredJournal): JournalWithPublisher {
     return {
@@ -211,5 +245,38 @@ export class InMemoryJournalStore implements JournalStore {
         return;
       }
     }
+  }
+
+  async listMembers(publisherId: string): Promise<StoredMember[]> {
+    return [...this.members.values()].filter((member) => member.publisherId === publisherId);
+  }
+
+  async findUserByEmail(email: string): Promise<MemberCandidate | null> {
+    return [...this.users.values()].find((user) => user.email === email) ?? null;
+  }
+
+  async findMemberById(publisherId: string, memberId: string): Promise<StoredMember | null> {
+    const member = this.members.get(memberId);
+    return member && member.publisherId === publisherId ? member : null;
+  }
+
+  async addMember(publisherId: string, userId: string, role: UserRole): Promise<StoredMember> {
+    const user = this.users.get(userId);
+    if (!user) throw new Error(`User not found: ${userId}`);
+    const member: StoredMember = {
+      id: randomUUID(),
+      publisherId,
+      userId,
+      role,
+      email: user.email,
+      name: user.name,
+      createdAt: new Date(),
+    };
+    this.members.set(member.id, member);
+    return member;
+  }
+
+  async removeMember(memberId: string): Promise<void> {
+    this.members.delete(memberId);
   }
 }

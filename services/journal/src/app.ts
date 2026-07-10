@@ -47,6 +47,17 @@ function canManageApiKey(user: JwtPayload, publisher: StoredPublisher): boolean 
   return isAdmin(user) || publisher.ownerId === user.sub;
 }
 
+/** Same authorization boundary as canManageApiKey: the publisher's owner, or an admin. */
+function canManagePublisher(user: JwtPayload, publisher: StoredPublisher): boolean {
+  return isAdmin(user) || publisher.ownerId === user.sub;
+}
+
+const MEMBER_ROLES = ["EDITOR", "REVIEWER"] as const;
+const addMemberSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(MEMBER_ROLES),
+});
+
 function generateApiKey(): string {
   return `rpos_key_${createHash("sha256").update(randomBytes(32)).digest("hex")}`;
 }
@@ -281,6 +292,81 @@ export function buildApp(options: AppOptions): FastifyInstance {
       }
 
       await journals.deleteApiKey(publisher.id);
+      return reply.code(204).send();
+    },
+  );
+
+  // ─── Publisher team (tenant-scoped editorial staff) ─────────────
+  // Without this, EDITOR/REVIEWER capability is global — any editor could
+  // see every publisher's submissions. Membership here is what the
+  // submission and review services check to scope visibility per tenant.
+
+  app.get<{ Params: { id: string } }>(
+    "/v1/publishers/:id/members",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const publisher = await journals.findPublisherById(request.params.id);
+      if (!publisher) return reply.code(404).send({ error: "NOT_FOUND" });
+      if (!canManagePublisher(request.user, publisher)) {
+        return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+      }
+      return reply.send({ members: await journals.listMembers(publisher.id) });
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/v1/publishers/:id/members",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const publisher = await journals.findPublisherById(request.params.id);
+      if (!publisher) return reply.code(404).send({ error: "NOT_FOUND" });
+      if (!canManagePublisher(request.user, publisher)) {
+        return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+      }
+
+      const parsed = addMemberSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({
+          error: "VALIDATION_ERROR",
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const candidate = await journals.findUserByEmail(parsed.data.email);
+      if (!candidate) return reply.code(404).send({ error: "USER_NOT_FOUND" });
+
+      // Tenant membership scopes WHERE an existing capability applies; it
+      // doesn't grant the capability itself. An admin must first promote the
+      // user to EDITOR/REVIEWER globally (via the existing role-management
+      // panel) before a publisher can invite them onto their team.
+      if (!candidate.roles.includes(parsed.data.role)) {
+        return reply.code(409).send({ error: "USER_LACKS_ROLE" });
+      }
+
+      const existing = await journals.listMembers(publisher.id);
+      if (existing.some((m) => m.userId === candidate.id && m.role === parsed.data.role)) {
+        return reply.code(409).send({ error: "MEMBER_EXISTS" });
+      }
+
+      const member = await journals.addMember(publisher.id, candidate.id, parsed.data.role);
+      return reply.code(201).send({ member });
+    },
+  );
+
+  app.delete<{ Params: { id: string; memberId: string } }>(
+    "/v1/publishers/:id/members/:memberId",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const publisher = await journals.findPublisherById(request.params.id);
+      if (!publisher) return reply.code(404).send({ error: "NOT_FOUND" });
+      if (!canManagePublisher(request.user, publisher)) {
+        return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+      }
+
+      const member = await journals.findMemberById(publisher.id, request.params.memberId);
+      if (!member) return reply.code(404).send({ error: "NOT_FOUND" });
+
+      await journals.removeMember(member.id);
       return reply.code(204).send();
     },
   );
