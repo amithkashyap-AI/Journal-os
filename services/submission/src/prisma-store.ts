@@ -1,5 +1,6 @@
 import { getPrisma } from "@rpos/database";
 import type {
+  ApiKeyLookup,
   CreateSubmissionData,
   StoredSubmission,
   SubmissionPatch,
@@ -35,6 +36,17 @@ export class PrismaSubmissionStore implements SubmissionStore {
     });
   }
 
+  async listByPublisherId(publisherId: string): Promise<StoredSubmission[]> {
+    return this.db.submission.findMany({
+      where: { journal: { publisherId } },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async findByIdForPublisher(id: string, publisherId: string): Promise<StoredSubmission | null> {
+    return this.db.submission.findFirst({ where: { id, journal: { publisherId } } });
+  }
+
   async update(id: string, patch: SubmissionPatch): Promise<StoredSubmission> {
     return this.db.submission.update({ where: { id }, data: patch });
   }
@@ -60,5 +72,15 @@ export class PrismaSubmissionStore implements SubmissionStore {
       select: { publisher: { select: { ownerId: true } } },
     });
     return journal?.publisher.ownerId ?? null;
+  }
+
+  async resolveApiKey(key: string): Promise<ApiKeyLookup | null> {
+    const apiKey = await this.db.apiKey.findUnique({ where: { key } });
+    if (!apiKey || !apiKey.enabled) return null;
+    return { apiKeyId: apiKey.id, publisherId: apiKey.publisherId };
+  }
+
+  async touchApiKeyLastUsed(apiKeyId: string): Promise<void> {
+    await this.db.apiKey.update({ where: { id: apiKeyId }, data: { lastUsedAt: new Date() } });
   }
 }

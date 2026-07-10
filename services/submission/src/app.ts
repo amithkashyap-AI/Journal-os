@@ -229,5 +229,59 @@ export function buildApp(options: AppOptions): FastifyInstance {
     },
   );
 
+  // ─── Publisher API-key access ───────────────────────────────────
+  // Additive, separate from the JWT-based routes above: a publisher's own
+  // key authenticates as that organization, not a specific user.
+
+  type ApiKeyAuthResult =
+    | { ok: true; apiKeyId: string; publisherId: string }
+    | { ok: false; error: "MISSING_API_KEY" | "INVALID_API_KEY" };
+
+  async function authenticateApiKey(request: FastifyRequest): Promise<ApiKeyAuthResult> {
+    const key = request.headers["x-api-key"];
+    if (typeof key !== "string" || !key) {
+      return { ok: false, error: "MISSING_API_KEY" };
+    }
+    const resolved = await submissions.resolveApiKey(key);
+    if (!resolved) return { ok: false, error: "INVALID_API_KEY" };
+    return { ok: true, ...resolved };
+  }
+
+  app.get("/v1/submissions/mine", async (request, reply) => {
+    const auth = await authenticateApiKey(request);
+    if (!auth.ok) return reply.code(401).send({ error: auth.error });
+
+    void submissions.touchApiKeyLastUsed(auth.apiKeyId);
+    return reply.send({ submissions: await submissions.listByPublisherId(auth.publisherId) });
+  });
+
+  app.post<{ Params: { id: string } }>("/v1/submissions/:id/publish", async (request, reply) => {
+    const auth = await authenticateApiKey(request);
+    if (!auth.ok) return reply.code(401).send({ error: auth.error });
+
+    const submission = await submissions.findByIdForPublisher(
+      request.params.id,
+      auth.publisherId,
+    );
+    if (!submission) return reply.code(404).send({ error: "NOT_FOUND" });
+
+    const result = applyTransition(submission.status, "publish", ["PUBLISHER"]);
+    if (!result.ok) {
+      const statusCode = result.reason === "FORBIDDEN" ? 403 : 409;
+      return reply.code(statusCode).send({ error: result.reason });
+    }
+
+    void submissions.touchApiKeyLastUsed(auth.apiKeyId);
+    const updated = await submissions.update(submission.id, { status: result.status });
+
+    void notifier.notify({
+      userId: submission.authorId,
+      type: "SUBMISSION_DECISION",
+      data: { title: submission.title, status: updated.status },
+    });
+
+    return reply.send({ submission: updated });
+  });
+
   return app;
 }

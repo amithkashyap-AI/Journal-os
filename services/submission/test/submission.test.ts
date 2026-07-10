@@ -348,4 +348,110 @@ describe("submission service", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().allowedActions).toEqual(["submit", "withdraw"]);
   });
+
+  describe("publisher API-key access", () => {
+    it("lists only this publisher's submissions via x-api-key", async () => {
+      const mine = await createDraft("author-1");
+      store.setJournalPublisher(mine.journalId, "pub-1-org");
+      store.addApiKey("key-abc", "pub-1-org");
+
+      const otherRes = await app.inject({
+        method: "POST",
+        url: "/v1/submissions",
+        headers: authHeader("author-2", ["AUTHOR"]),
+        payload: { ...DRAFT_PAYLOAD, journalId: "journal-other" },
+      });
+      store.setJournalPublisher("journal-other", "pub-2-org");
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/submissions/mine",
+        headers: { "x-api-key": "key-abc" },
+      });
+      expect(res.statusCode).toBe(200);
+      const ids = res.json().submissions.map((s: { id: string }) => s.id);
+      expect(ids).toContain(mine.id);
+      expect(ids).not.toContain(otherRes.json().submission.id);
+    });
+
+    it("rejects /v1/submissions/mine with a missing or invalid key", async () => {
+      const missing = await app.inject({ method: "GET", url: "/v1/submissions/mine" });
+      expect(missing.statusCode).toBe(401);
+      expect(missing.json().error).toBe("MISSING_API_KEY");
+
+      const invalid = await app.inject({
+        method: "GET",
+        url: "/v1/submissions/mine",
+        headers: { "x-api-key": "not-a-real-key" },
+      });
+      expect(invalid.statusCode).toBe(401);
+      expect(invalid.json().error).toBe("INVALID_API_KEY");
+    });
+
+    it("lets the owning publisher's key publish an accepted submission via /publish", async () => {
+      const draft = await createDraft("author-1");
+      store.setJournalPublisher(draft.journalId, "pub-1-org");
+      store.addApiKey("key-abc", "pub-1-org");
+
+      await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+      await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+      await act(draft.id, "accept", "editor-1", ["EDITOR"]);
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/v1/submissions/${draft.id}/publish`,
+        headers: { "x-api-key": "key-abc" },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().submission.status).toBe("PUBLISHED");
+    });
+
+    it("404s /publish for a submission under a journal this key doesn't own", async () => {
+      const draft = await createDraft("author-1");
+      store.setJournalPublisher(draft.journalId, "pub-1-org");
+      store.addApiKey("key-other", "pub-2-org");
+
+      await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+      await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+      await act(draft.id, "accept", "editor-1", ["EDITOR"]);
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/v1/submissions/${draft.id}/publish`,
+        headers: { "x-api-key": "key-other" },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("409s /publish when the submission isn't ACCEPTED yet", async () => {
+      const draft = await createDraft("author-1");
+      store.setJournalPublisher(draft.journalId, "pub-1-org");
+      store.addApiKey("key-abc", "pub-1-org");
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/v1/submissions/${draft.id}/publish`,
+        headers: { "x-api-key": "key-abc" },
+      });
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error).toBe("INVALID_TRANSITION");
+    });
+
+    it("rejects /publish with a disabled key", async () => {
+      const draft = await createDraft("author-1");
+      store.setJournalPublisher(draft.journalId, "pub-1-org");
+      store.addApiKey("key-abc", "pub-1-org", false);
+
+      await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+      await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+      await act(draft.id, "accept", "editor-1", ["EDITOR"]);
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/v1/submissions/${draft.id}/publish`,
+        headers: { "x-api-key": "key-abc" },
+      });
+      expect(res.statusCode).toBe(401);
+    });
+  });
 });
