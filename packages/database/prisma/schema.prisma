@@ -51,10 +51,11 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  submissions     Submission[]
-  reviews         Review[]
-  notifications   Notification[]
-  ownedPublishers Publisher[]
+  submissions      Submission[]
+  reviews          Review[]
+  notifications    Notification[]
+  ownedPublishers  Publisher[]
+  publisherMember  PublisherMember[]
 
   @@map("users")
 }
@@ -68,14 +69,35 @@ model Publisher {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner       User?        @relation(fields: [ownerId], references: [id])
+  owner       User?              @relation(fields: [ownerId], references: [id])
   journals    Journal[]
   conferences Conference[]
   books       Book[]
   apiKey      ApiKey?
+  members     PublisherMember[]
 
   @@index([ownerId])
   @@map("publishers")
+}
+
+/// Tenant-scoped editorial staff: which publisher a user's EDITOR/REVIEWER
+/// capability actually applies to. Without this, any global EDITOR/REVIEWER
+/// could see or act on every publisher's submissions — the opposite of
+/// tenant isolation. Publisher.ownerId already scopes the PUBLISHER role the
+/// same way; this closes the equivalent gap for EDITOR and REVIEWER.
+model PublisherMember {
+  id          String   @id @default(cuid())
+  publisherId String
+  userId      String
+  role        UserRole
+  createdAt   DateTime @default(now())
+
+  publisher Publisher @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([publisherId, userId, role])
+  @@index([userId])
+  @@map("publisher_members")
 }
 
 model ApiKey {
