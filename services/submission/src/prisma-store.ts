@@ -29,6 +29,16 @@ export class PrismaSubmissionStore implements SubmissionStore {
     return this.db.submission.findMany({ orderBy: { createdAt: "desc" } });
   }
 
+  async listPublished(): Promise<StoredSubmission[]> {
+    return this.db.submission.findMany({
+      where: { status: "PUBLISHED" },
+      // Postgres defaults to NULLS FIRST on DESC, which would rank legacy
+      // rows published before the publishedAt column existed above genuinely
+      // new articles; force them to the back instead.
+      orderBy: { publishedAt: { sort: "desc", nulls: "last" } },
+    });
+  }
+
   async listByJournalOwner(ownerId: string): Promise<StoredSubmission[]> {
     return this.db.submission.findMany({
       where: { journal: { publisher: { ownerId } } },

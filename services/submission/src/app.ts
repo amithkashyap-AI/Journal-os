@@ -110,6 +110,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.send({ submissions: [...byId.values()] });
   });
 
+  // Public catalog: no auth required. A published manuscript is, by
+  // definition, meant to be discoverable — this is the only submission read
+  // route without an onRequest gate.
+  app.get("/v1/submissions/published", async (_request, reply) => {
+    return reply.send({ submissions: await submissions.listPublished() });
+  });
+
   app.get<{ Params: { id: string } }>(
     "/v1/submissions/:id",
     { onRequest: [app.authenticate] },
@@ -201,7 +208,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         status: result.status,
         ...(parsed.data.action === "submit" ? { submittedAt: new Date() } : {}),
         ...(parsed.data.action === "publish" && !submission.doi
-          ? { doi: generateDoi(doiPrefix, submission.id) }
+          ? { doi: generateDoi(doiPrefix, submission.id), publishedAt: new Date() }
           : {}),
       });
 
@@ -281,7 +288,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
     void submissions.touchApiKeyLastUsed(auth.apiKeyId);
     const updated = await submissions.update(submission.id, {
       status: result.status,
-      ...(submission.doi ? {} : { doi: generateDoi(doiPrefix, submission.id) }),
+      ...(submission.doi
+        ? {}
+        : { doi: generateDoi(doiPrefix, submission.id), publishedAt: new Date() }),
     });
 
     void notifier.notify({

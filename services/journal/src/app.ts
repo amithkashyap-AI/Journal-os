@@ -77,6 +77,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.send({ journals: await journals.listJournals() });
   });
 
+  // Public catalog: no auth required, same safe fields (no owner info) as
+  // the authenticated listing — a journal catalog is meant to be browsable.
+  app.get("/v1/journals/public", async (_request, reply) => {
+    return reply.send({ journals: await journals.listJournals() });
+  });
+
   app.get<{ Params: { id: string } }>(
     "/v1/journals/:id",
     { onRequest: [app.authenticate] },

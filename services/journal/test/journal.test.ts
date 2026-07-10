@@ -112,6 +112,16 @@ describe("journal service", () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it("lists journals publicly with no auth via /v1/journals/public", async () => {
+    const publisher = (await createPublisher()).json().publisher;
+    await createJournal(publisher.id);
+
+    const res = await app.inject({ method: "GET", url: "/v1/journals/public" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().journals).toHaveLength(1);
+    expect(res.json().journals[0].publisherName).toBe("Acta Press");
+  });
+
   it("lets an admin update journal metadata regardless of ownership", async () => {
     const publisher = (await createPublisher()).json().publisher;
     const journal = (await createJournal(publisher.id)).json().journal;

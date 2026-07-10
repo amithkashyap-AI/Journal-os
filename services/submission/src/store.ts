@@ -12,6 +12,7 @@ export interface StoredSubmission {
   manuscriptUrl: string | null;
   doi: string | null;
   submittedAt: Date | null;
+  publishedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +30,7 @@ export interface SubmissionPatch {
   submittedAt?: Date;
   manuscriptUrl?: string;
   doi?: string;
+  publishedAt?: Date;
 }
 
 export interface ApiKeyLookup {
@@ -41,6 +43,8 @@ export interface SubmissionStore {
   findById(id: string): Promise<StoredSubmission | null>;
   listByAuthor(authorId: string): Promise<StoredSubmission[]>;
   listAll(): Promise<StoredSubmission[]>;
+  /** Every published submission, newest first — public, no auth required. */
+  listPublished(): Promise<StoredSubmission[]>;
   /** Submissions whose journal is owned (Publisher.ownerId) by the given user. */
   listByJournalOwner(ownerId: string): Promise<StoredSubmission[]>;
   /** Submissions whose journal belongs to this publisher (for API-key auth, which identifies a publisher, not a user). */
@@ -136,6 +140,7 @@ export class InMemorySubmissionStore implements SubmissionStore {
       manuscriptUrl: null,
       doi: null,
       submittedAt: null,
+      publishedAt: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -153,6 +158,12 @@ export class InMemorySubmissionStore implements SubmissionStore {
 
   async listAll(): Promise<StoredSubmission[]> {
     return [...this.byId.values()];
+  }
+
+  async listPublished(): Promise<StoredSubmission[]> {
+    return [...this.byId.values()]
+      .filter((s) => s.status === "PUBLISHED")
+      .sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0));
   }
 
   async update(id: string, patch: SubmissionPatch): Promise<StoredSubmission> {

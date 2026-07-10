@@ -285,6 +285,7 @@ describe("submission service", () => {
     expect(publish.statusCode).toBe(200);
     expect(publish.json().submission.status).toBe("PUBLISHED");
     expect(publish.json().submission.doi).toMatch(/^10\.5555\/rpos\.\d{4}\.[a-z0-9]{10}$/);
+    expect(publish.json().submission.publishedAt).toBeTruthy();
   });
 
   it("assigns a doi using the configured prefix only when publishing", async () => {
@@ -502,6 +503,26 @@ describe("submission service", () => {
         headers: { "x-api-key": "key-abc" },
       });
       expect(res.statusCode).toBe(401);
+    });
+  });
+
+  describe("public catalog", () => {
+    it("lists published submissions with no auth, newest first, excluding unpublished ones", async () => {
+      const draft = await createDraft("author-1");
+      await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+      await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+      await act(draft.id, "accept", "editor-1", ["EDITOR"]);
+      await act(draft.id, "publish", "editor-1", ["ADMIN"]);
+
+      const stillDraft = await createDraft("author-2");
+
+      const res = await app.inject({ method: "GET", url: "/v1/submissions/published" });
+      expect(res.statusCode).toBe(200);
+      const ids = res.json().submissions.map((s: { id: string }) => s.id);
+      expect(ids).toContain(draft.id);
+      expect(ids).not.toContain(stillDraft.id);
+      expect(res.json().submissions[0].doi).toBeTruthy();
+      expect(res.json().submissions[0].publishedAt).toBeTruthy();
     });
   });
 });

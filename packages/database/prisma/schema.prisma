@@ -150,6 +150,7 @@ model Submission {
   manuscriptUrl String?
   doi           String?          @unique
   submittedAt   DateTime?
+  publishedAt   DateTime?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
@@ -158,6 +159,7 @@ model Submission {
   reviews Review[]
 
   @@index([journalId, status])
+  @@index([status, publishedAt])
   @@map("submissions")
 }
 
