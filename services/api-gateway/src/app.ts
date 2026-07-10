@@ -20,6 +20,10 @@ export interface AppOptions {
   upstreams: Upstreams;
   /** Requests per minute per client IP. */
   rateLimitMax?: number;
+  /** Requests per minute per API key — tracked separately from IP so a key
+   * behind a shared/NAT'd IP isn't limited by other traffic on that IP, and
+   * so one key can't burn the budget other users on its IP rely on. */
+  apiKeyRateLimitMax?: number;
   corsOrigins?: string[];
   logger?: boolean;
 }
@@ -27,14 +31,20 @@ export interface AppOptions {
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
   const { upstreams } = options;
+  const ipMax = options.rateLimitMax ?? 300;
+  const apiKeyMax = options.apiKeyRateLimitMax ?? 60;
 
   app.register(fastifyCors, {
     origin: options.corsOrigins && options.corsOrigins.length > 0 ? options.corsOrigins : false,
   });
 
   app.register(fastifyRateLimit, {
-    max: options.rateLimitMax ?? 300,
     timeWindow: "1 minute",
+    keyGenerator: (request) => {
+      const apiKey = request.headers["x-api-key"];
+      return typeof apiKey === "string" && apiKey ? `apikey:${apiKey}` : request.ip;
+    },
+    max: (_request, key) => (typeof key === "string" && key.startsWith("apikey:") ? apiKeyMax : ipMax),
   });
 
   // Internal-only headers must never cross the public boundary.

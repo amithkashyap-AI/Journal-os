@@ -84,6 +84,30 @@ describe("api gateway", () => {
     });
   });
 
+  it("proxies /api/submissions/mine and .../publish with x-api-key intact", async () => {
+    const mine = await app.inject({
+      method: "GET",
+      url: "/api/submissions/mine",
+      headers: { "x-api-key": "rpos_key_abc123" },
+    });
+    expect(mine.json()).toMatchObject({
+      service: "submission",
+      url: "/v1/submissions/mine",
+      apiKey: "rpos_key_abc123",
+    });
+
+    const publish = await app.inject({
+      method: "POST",
+      url: "/api/submissions/sub-1/publish",
+      headers: { "x-api-key": "rpos_key_abc123" },
+    });
+    expect(publish.json()).toMatchObject({
+      service: "submission",
+      url: "/v1/submissions/sub-1/publish",
+      apiKey: "rpos_key_abc123",
+    });
+  });
+
   it("routes submission actions to the submission service", async () => {
     const res = await app.inject({
       method: "POST",
@@ -179,6 +203,54 @@ describe("api gateway", () => {
       }
       const blocked = await limited.inject({ method: "GET", url: "/api/journals" });
       expect(blocked.statusCode).toBe(429);
+    } finally {
+      await limited.close();
+    }
+  });
+
+  it("tracks API-key rate limits separately from the per-IP limit", async () => {
+    const limited = buildApp({
+      upstreams: {
+        auth: stubs.auth!.url,
+        submission: stubs.submission!.url,
+        review: stubs.review!.url,
+        notification: stubs.notification!.url,
+        journal: stubs.journal!.url,
+        files: stubs.files!.url,
+      },
+      rateLimitMax: 2,
+      apiKeyRateLimitMax: 2,
+    });
+    await limited.ready();
+    try {
+      // Exhaust the IP-based budget with plain requests.
+      for (let i = 0; i < 2; i += 1) {
+        const ok = await limited.inject({ method: "GET", url: "/api/journals" });
+        expect(ok.statusCode).toBe(200);
+      }
+      const ipBlocked = await limited.inject({ method: "GET", url: "/api/journals" });
+      expect(ipBlocked.statusCode).toBe(429);
+
+      // A request carrying an API key still succeeds — it has its own budget.
+      const withKey = await limited.inject({
+        method: "GET",
+        url: "/api/journals/mine",
+        headers: { "x-api-key": "rpos_key_test" },
+      });
+      expect(withKey.statusCode).toBe(200);
+
+      // ...but that key's own budget still runs out independently.
+      await limited.inject({
+        method: "GET",
+        url: "/api/journals/mine",
+        headers: { "x-api-key": "rpos_key_test" },
+      });
+      const keyBlocked = await limited.inject({
+        method: "GET",
+        url: "/api/journals/mine",
+        headers: { "x-api-key": "rpos_key_test" },
+      });
+      expect(keyBlocked.statusCode).toBe(429);
     } finally {
       await limited.close();
     }
