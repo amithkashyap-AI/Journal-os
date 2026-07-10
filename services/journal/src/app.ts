@@ -1,5 +1,7 @@
+import { createHash, randomBytes } from "node:crypto";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import fastifyJwt from "@fastify/jwt";
+import { z } from "zod";
 import {
   createJournalSchema,
   createPublisherSchema,
@@ -7,7 +9,7 @@ import {
 } from "@rpos/validation";
 import { slugify } from "@rpos/utils";
 import type { JwtPayload, UserRole } from "@rpos/types";
-import type { JournalStore } from "./store.js";
+import type { JournalStore, StoredPublisher } from "./store.js";
 
 declare module "@fastify/jwt" {
   interface FastifyJWT {
@@ -40,6 +42,16 @@ function isManager(user: JwtPayload): boolean {
 function isAdmin(user: JwtPayload): boolean {
   return hasAnyRole(user, "ADMIN");
 }
+
+function canManageApiKey(user: JwtPayload, publisher: StoredPublisher): boolean {
+  return isAdmin(user) || publisher.ownerId === user.sub;
+}
+
+function generateApiKey(): string {
+  return `rpos_key_${createHash("sha256").update(randomBytes(32)).digest("hex")}`;
+}
+
+const setApiKeyEnabledSchema = z.object({ enabled: z.boolean() });
 
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
@@ -168,6 +180,123 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const ownerId = isAdmin(request.user) ? undefined : request.user.sub;
     const publisher = await journals.createPublisher({ ...parsed.data, slug, ownerId });
     return reply.code(201).send({ publisher });
+  });
+
+  // ─── Publisher API keys ─────────────────────────────────────────
+  // One key per publisher, used for programmatic access (see GET
+  // /v1/journals/mine below) rather than logging in as a user.
+
+  app.post<{ Params: { id: string } }>(
+    "/v1/publishers/:id/api-key",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const publisher = await journals.findPublisherById(request.params.id);
+      if (!publisher) return reply.code(404).send({ error: "NOT_FOUND" });
+      if (!canManageApiKey(request.user, publisher)) {
+        return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+      }
+      if (await journals.findApiKeyByPublisherId(publisher.id)) {
+        return reply.code(409).send({ error: "API_KEY_EXISTS" });
+      }
+
+      const apiKey = await journals.createApiKey(publisher.id, generateApiKey());
+      return reply.code(201).send({ apiKey });
+    },
+  );
+
+  app.get<{ Params: { id: string } }>(
+    "/v1/publishers/:id/api-key",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const publisher = await journals.findPublisherById(request.params.id);
+      if (!publisher) return reply.code(404).send({ error: "NOT_FOUND" });
+      if (!canManageApiKey(request.user, publisher)) {
+        return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+      }
+
+      const apiKey = await journals.findApiKeyByPublisherId(publisher.id);
+      if (!apiKey) return reply.code(404).send({ error: "NO_API_KEY" });
+      return reply.send({ apiKey });
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/v1/publishers/:id/api-key/regenerate",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const publisher = await journals.findPublisherById(request.params.id);
+      if (!publisher) return reply.code(404).send({ error: "NOT_FOUND" });
+      if (!canManageApiKey(request.user, publisher)) {
+        return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+      }
+      if (!(await journals.findApiKeyByPublisherId(publisher.id))) {
+        return reply.code(404).send({ error: "NO_API_KEY" });
+      }
+
+      const apiKey = await journals.regenerateApiKey(publisher.id, generateApiKey());
+      return reply.send({ apiKey });
+    },
+  );
+
+  app.patch<{ Params: { id: string } }>(
+    "/v1/publishers/:id/api-key",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const publisher = await journals.findPublisherById(request.params.id);
+      if (!publisher) return reply.code(404).send({ error: "NOT_FOUND" });
+      if (!canManageApiKey(request.user, publisher)) {
+        return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+      }
+
+      const parsed = setApiKeyEnabledSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "VALIDATION_ERROR" });
+      }
+      if (!(await journals.findApiKeyByPublisherId(publisher.id))) {
+        return reply.code(404).send({ error: "NO_API_KEY" });
+      }
+
+      const apiKey = await journals.setApiKeyEnabled(publisher.id, parsed.data.enabled);
+      return reply.send({ apiKey });
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    "/v1/publishers/:id/api-key",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const publisher = await journals.findPublisherById(request.params.id);
+      if (!publisher) return reply.code(404).send({ error: "NOT_FOUND" });
+      if (!canManageApiKey(request.user, publisher)) {
+        return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+      }
+      if (!(await journals.findApiKeyByPublisherId(publisher.id))) {
+        return reply.code(404).send({ error: "NO_API_KEY" });
+      }
+
+      await journals.deleteApiKey(publisher.id);
+      return reply.code(204).send();
+    },
+  );
+
+  // A publisher's own journals, authenticated via their API key instead of a
+  // user JWT — the key's actual programmatic-access surface.
+  app.get("/v1/journals/mine", async (request, reply) => {
+    const key = request.headers["x-api-key"];
+    if (typeof key !== "string" || !key) {
+      return reply.code(401).send({ error: "MISSING_API_KEY" });
+    }
+
+    const apiKey = await journals.findApiKeyByValue(key);
+    if (!apiKey || !apiKey.enabled) {
+      return reply.code(401).send({ error: "INVALID_API_KEY" });
+    }
+
+    void journals.touchApiKeyLastUsed(apiKey.id);
+    const mine = (await journals.listJournals()).filter(
+      (journal) => journal.publisherId === apiKey.publisherId,
+    );
+    return reply.send({ journals: mine });
   });
 
   return app;

@@ -4,6 +4,7 @@ import type {
   CreatePublisherData,
   JournalStore,
   JournalWithPublisher,
+  StoredApiKey,
   StoredJournal,
   StoredPublisher,
   UpdateJournalData,
@@ -65,5 +66,33 @@ export class PrismaJournalStore implements JournalStore {
 
   async createPublisher(data: CreatePublisherData): Promise<StoredPublisher> {
     return this.db.publisher.create({ data });
+  }
+
+  async findApiKeyByPublisherId(publisherId: string): Promise<StoredApiKey | null> {
+    return this.db.apiKey.findUnique({ where: { publisherId } });
+  }
+
+  async findApiKeyByValue(key: string): Promise<StoredApiKey | null> {
+    return this.db.apiKey.findUnique({ where: { key } });
+  }
+
+  async createApiKey(publisherId: string, key: string): Promise<StoredApiKey> {
+    return this.db.apiKey.create({ data: { publisherId, key } });
+  }
+
+  async regenerateApiKey(publisherId: string, key: string): Promise<StoredApiKey> {
+    return this.db.apiKey.update({ where: { publisherId }, data: { key, enabled: true } });
+  }
+
+  async setApiKeyEnabled(publisherId: string, enabled: boolean): Promise<StoredApiKey> {
+    return this.db.apiKey.update({ where: { publisherId }, data: { enabled } });
+  }
+
+  async deleteApiKey(publisherId: string): Promise<void> {
+    await this.db.apiKey.delete({ where: { publisherId } });
+  }
+
+  async touchApiKeyLastUsed(id: string): Promise<void> {
+    await this.db.apiKey.update({ where: { id }, data: { lastUsedAt: new Date() } });
   }
 }

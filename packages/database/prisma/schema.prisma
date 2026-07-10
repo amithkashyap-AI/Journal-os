@@ -72,9 +72,25 @@ model Publisher {
   journals    Journal[]
   conferences Conference[]
   books       Book[]
+  apiKey      ApiKey?
 
   @@index([ownerId])
   @@map("publishers")
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  publisherId String    @unique
+  key         String    @unique
+  enabled     Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastUsedAt  DateTime?
+
+  publisher Publisher @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+
+  @@index([key])
+  @@map("api_keys")
 }
 
 model Journal {

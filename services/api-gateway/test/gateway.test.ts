@@ -15,6 +15,7 @@ async function startStub(name: string): Promise<Stub> {
     url: request.url,
     authorization: request.headers.authorization ?? null,
     internalSecret: request.headers["x-internal-secret"] ?? null,
+    apiKey: request.headers["x-api-key"] ?? null,
     body: request.body ?? null,
   }));
   await instance.listen({ port: 0, host: "127.0.0.1" });
@@ -66,6 +67,20 @@ describe("api gateway", () => {
       service: "journal",
       url: "/v1/journals",
       authorization: "Bearer token-123",
+    });
+  });
+
+  it("proxies /api/journals/mine with x-api-key intact (publisher API-key auth)", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/journals/mine",
+      headers: { "x-api-key": "rpos_key_abc123" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      service: "journal",
+      url: "/v1/journals/mine",
+      apiKey: "rpos_key_abc123",
     });
   });
 

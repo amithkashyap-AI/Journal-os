@@ -197,4 +197,208 @@ describe("journal service", () => {
     });
     expect(res.statusCode).toBe(400);
   });
+
+  describe("publisher API keys", () => {
+    async function createOwnedPublisher(ownerId: string, name = "Owner Press") {
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/publishers",
+        headers: authHeader(ownerId, ["PUBLISHER"]),
+        payload: { name },
+      });
+      return res.json().publisher;
+    }
+
+    it("lets the owning publisher create, view, and delete their API key", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+
+      const create = await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(create.statusCode).toBe(201);
+      expect(create.json().apiKey.key).toMatch(/^rpos_key_[0-9a-f]{64}$/);
+      expect(create.json().apiKey.enabled).toBe(true);
+      expect(create.json().apiKey.lastUsedAt).toBeNull();
+
+      const view = await app.inject({
+        method: "GET",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(view.statusCode).toBe(200);
+      expect(view.json().apiKey.key).toBe(create.json().apiKey.key);
+
+      const del = await app.inject({
+        method: "DELETE",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(del.statusCode).toBe(204);
+
+      const afterDelete = await app.inject({
+        method: "GET",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(afterDelete.statusCode).toBe(404);
+      expect(afterDelete.json().error).toBe("NO_API_KEY");
+    });
+
+    it("rejects a second key while one already exists", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+      await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      const second = await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(second.statusCode).toBe(409);
+      expect(second.json().error).toBe("API_KEY_EXISTS");
+    });
+
+    it("forbids anyone but the owner or an admin from managing the key", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+      await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+
+      const stranger = authHeader("pub-2", ["PUBLISHER"]);
+      const create = await app.inject({
+        method: "GET",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: stranger,
+      });
+      expect(create.statusCode).toBe(403);
+
+      // ...but an admin can, despite not owning it.
+      const asAdmin = await app.inject({
+        method: "GET",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("admin-1", ["ADMIN"]),
+      });
+      expect(asAdmin.statusCode).toBe(200);
+    });
+
+    it("regenerates the key value and re-enables a disabled key", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+      const original = (
+        await app.inject({
+          method: "POST",
+          url: `/v1/publishers/${publisher.id}/api-key`,
+          headers: authHeader("pub-1", ["PUBLISHER"]),
+        })
+      ).json().apiKey;
+
+      await app.inject({
+        method: "PATCH",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { enabled: false },
+      });
+
+      const regenerated = await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/api-key/regenerate`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(regenerated.statusCode).toBe(200);
+      expect(regenerated.json().apiKey.key).not.toBe(original.key);
+      expect(regenerated.json().apiKey.enabled).toBe(true);
+    });
+
+    it("404s regenerating or toggling a key that doesn't exist yet", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+      const regenerate = await app.inject({
+        method: "POST",
+        url: `/v1/publishers/${publisher.id}/api-key/regenerate`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(regenerate.statusCode).toBe(404);
+
+      const toggle = await app.inject({
+        method: "PATCH",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { enabled: false },
+      });
+      expect(toggle.statusCode).toBe(404);
+    });
+
+    it("authenticates GET /v1/journals/mine via x-api-key, scoped to that publisher only", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+      const otherPublisher = await createOwnedPublisher("pub-2", "Other Press");
+      await createJournal(publisher.id, "My Journal");
+      await createJournal(otherPublisher.id, "Someone Else's Journal");
+
+      const { key } = (
+        await app.inject({
+          method: "POST",
+          url: `/v1/publishers/${publisher.id}/api-key`,
+          headers: authHeader("pub-1", ["PUBLISHER"]),
+        })
+      ).json().apiKey;
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/v1/journals/mine",
+        headers: { "x-api-key": key },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().journals).toHaveLength(1);
+      expect(res.json().journals[0]).toMatchObject({ title: "My Journal" });
+
+      // lastUsedAt is now set.
+      const viewed = await app.inject({
+        method: "GET",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(viewed.json().apiKey.lastUsedAt).toBeTruthy();
+    });
+
+    it("rejects /v1/journals/mine with a missing, invalid, or disabled key", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+      const { key } = (
+        await app.inject({
+          method: "POST",
+          url: `/v1/publishers/${publisher.id}/api-key`,
+          headers: authHeader("pub-1", ["PUBLISHER"]),
+        })
+      ).json().apiKey;
+
+      const missing = await app.inject({ method: "GET", url: "/v1/journals/mine" });
+      expect(missing.statusCode).toBe(401);
+      expect(missing.json().error).toBe("MISSING_API_KEY");
+
+      const garbage = await app.inject({
+        method: "GET",
+        url: "/v1/journals/mine",
+        headers: { "x-api-key": "not-a-real-key" },
+      });
+      expect(garbage.statusCode).toBe(401);
+      expect(garbage.json().error).toBe("INVALID_API_KEY");
+
+      await app.inject({
+        method: "PATCH",
+        url: `/v1/publishers/${publisher.id}/api-key`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { enabled: false },
+      });
+      const disabled = await app.inject({
+        method: "GET",
+        url: "/v1/journals/mine",
+        headers: { "x-api-key": key },
+      });
+      expect(disabled.statusCode).toBe(401);
+      expect(disabled.json().error).toBe("INVALID_API_KEY");
+    });
+  });
 });

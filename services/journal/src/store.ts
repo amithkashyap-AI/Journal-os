@@ -46,6 +46,16 @@ export interface CreatePublisherData {
   ownerId?: string;
 }
 
+export interface StoredApiKey {
+  id: string;
+  publisherId: string;
+  key: string;
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  lastUsedAt: Date | null;
+}
+
 export interface JournalStore {
   listJournals(): Promise<JournalWithPublisher[]>;
   findJournalById(id: string): Promise<JournalWithPublisher | null>;
@@ -58,11 +68,23 @@ export interface JournalStore {
   findPublisherById(id: string): Promise<StoredPublisher | null>;
   findPublisherBySlug(slug: string): Promise<StoredPublisher | null>;
   createPublisher(data: CreatePublisherData): Promise<StoredPublisher>;
+
+  /** At most one API key per publisher. */
+  findApiKeyByPublisherId(publisherId: string): Promise<StoredApiKey | null>;
+  /** For authenticating an incoming x-api-key header. */
+  findApiKeyByValue(key: string): Promise<StoredApiKey | null>;
+  createApiKey(publisherId: string, key: string): Promise<StoredApiKey>;
+  /** Replaces the key value, re-enabling it. */
+  regenerateApiKey(publisherId: string, key: string): Promise<StoredApiKey>;
+  setApiKeyEnabled(publisherId: string, enabled: boolean): Promise<StoredApiKey>;
+  deleteApiKey(publisherId: string): Promise<void>;
+  touchApiKeyLastUsed(id: string): Promise<void>;
 }
 
 export class InMemoryJournalStore implements JournalStore {
   private readonly journals = new Map<string, StoredJournal>();
   private readonly publishers = new Map<string, StoredPublisher>();
+  private readonly apiKeys = new Map<string, StoredApiKey>(); // keyed by publisherId
 
   private withPublisher(journal: StoredJournal): JournalWithPublisher {
     return {
@@ -137,5 +159,57 @@ export class InMemoryJournalStore implements JournalStore {
     };
     this.publishers.set(publisher.id, publisher);
     return publisher;
+  }
+
+  async findApiKeyByPublisherId(publisherId: string): Promise<StoredApiKey | null> {
+    return this.apiKeys.get(publisherId) ?? null;
+  }
+
+  async findApiKeyByValue(key: string): Promise<StoredApiKey | null> {
+    return [...this.apiKeys.values()].find((apiKey) => apiKey.key === key) ?? null;
+  }
+
+  async createApiKey(publisherId: string, key: string): Promise<StoredApiKey> {
+    const now = new Date();
+    const apiKey: StoredApiKey = {
+      id: randomUUID(),
+      publisherId,
+      key,
+      enabled: true,
+      createdAt: now,
+      updatedAt: now,
+      lastUsedAt: null,
+    };
+    this.apiKeys.set(publisherId, apiKey);
+    return apiKey;
+  }
+
+  async regenerateApiKey(publisherId: string, key: string): Promise<StoredApiKey> {
+    const existing = this.apiKeys.get(publisherId);
+    if (!existing) throw new Error(`No API key for publisher: ${publisherId}`);
+    const updated: StoredApiKey = { ...existing, key, enabled: true, updatedAt: new Date() };
+    this.apiKeys.set(publisherId, updated);
+    return updated;
+  }
+
+  async setApiKeyEnabled(publisherId: string, enabled: boolean): Promise<StoredApiKey> {
+    const existing = this.apiKeys.get(publisherId);
+    if (!existing) throw new Error(`No API key for publisher: ${publisherId}`);
+    const updated: StoredApiKey = { ...existing, enabled, updatedAt: new Date() };
+    this.apiKeys.set(publisherId, updated);
+    return updated;
+  }
+
+  async deleteApiKey(publisherId: string): Promise<void> {
+    this.apiKeys.delete(publisherId);
+  }
+
+  async touchApiKeyLastUsed(id: string): Promise<void> {
+    for (const [publisherId, apiKey] of this.apiKeys) {
+      if (apiKey.id === id) {
+        this.apiKeys.set(publisherId, { ...apiKey, lastUsedAt: new Date() });
+        return;
+      }
+    }
   }
 }
