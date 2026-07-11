@@ -7,10 +7,7 @@ import { submitReviewSchema, type SubmitReviewInput } from "@rpos/validation";
 import { ClipboardCheck } from "lucide-react";
 import { REVIEW_RECOMMENDATIONS } from "@rpos/types";
 import { submitReview } from "../../lib/review-actions";
-import { Button } from "../ui/button";
-import { Label } from "../ui/label";
-import { NativeSelect } from "../ui/select";
-import { Textarea } from "../ui/textarea";
+import { Button, Label, NativeSelect, Textarea } from "@rpos/ui";
 
 export function ReviewForm({ reviewId }: { reviewId: string }) {
   const [serverError, setServerError] = useState<string>();

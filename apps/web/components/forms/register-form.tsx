@@ -6,9 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSchema, type RegisterInput } from "@rpos/validation";
 import { UserPlus } from "lucide-react";
 import { register as registerAction } from "../../lib/auth-actions";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
+import { Button, Input, Label } from "@rpos/ui";
 
 export function RegisterForm() {
   const [serverError, setServerError] = useState<string>();

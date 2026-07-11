@@ -6,11 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { FilePlus } from "lucide-react";
 import { createSubmission } from "../../lib/submission-actions";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { NativeSelect } from "../ui/select";
-import { Textarea } from "../ui/textarea";
+import { Button, Input, Label, NativeSelect, Textarea } from "@rpos/ui";
 
 const formSchema = z.object({
   journalId: z.string().min(1, "Pick a journal"),

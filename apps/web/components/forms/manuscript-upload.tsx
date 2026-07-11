@@ -3,8 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { Upload } from "lucide-react";
 import { uploadManuscript } from "../../lib/file-actions";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import { Button, Input } from "@rpos/ui";
 
 export function ManuscriptUpload({
   submissionId,

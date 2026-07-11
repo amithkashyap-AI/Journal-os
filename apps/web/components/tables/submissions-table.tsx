@@ -14,9 +14,7 @@ import {
 import { ArrowUpDown } from "lucide-react";
 import { SUBMISSION_STATUSES, type SubmissionStatus } from "@rpos/types";
 import { StatusBadge } from "../StatusBadge";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { NativeSelect } from "../ui/select";
+import { Button, Input, NativeSelect } from "@rpos/ui";
 
 export interface SubmissionRow {
   id: string;

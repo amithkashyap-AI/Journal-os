@@ -5,19 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Building2, BookPlus, Send, Inbox, BadgeCheck } from "lucide-react";
-import { EmptyState } from "@rpos/ui";
-import { Button } from "./ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { NativeSelect } from "./ui/select";
-import { Textarea } from "./ui/textarea";
+import { EmptyState, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, NativeSelect, Textarea } from "@rpos/ui";
 import type { JournalDto, MemberDto, PublisherDto } from "../lib/catalog";
 import { createJournal, createPublisher } from "../lib/journal-actions";
 import { performSubmissionAction } from "../lib/submission-actions";

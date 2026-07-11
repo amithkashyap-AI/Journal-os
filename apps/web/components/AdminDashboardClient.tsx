@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Users,
   Activity,
-  BookOpen,
   RefreshCw,
   UserCheck,
   Check,
@@ -16,11 +15,7 @@ import type { PublicUser, UserRole } from "@rpos/types";
 import type { JournalDto, PublisherDto } from "../lib/catalog";
 import { updateUserRoles, checkServicesHealth, type ServiceStatus } from "../lib/auth-actions";
 import { createJournal } from "../lib/journal-actions";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "./ui/card";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Label, NativeSelect, Textarea } from "@rpos/ui";
 
 interface AdminDashboardClientProps {
   initialUsers: PublicUser[];
@@ -144,42 +139,33 @@ export function AdminDashboardClient({
   );
 
   return (
-    <div className="space-y-8 animate-in">
+    <div className="space-y-8">
       {/* Overview Dashboard Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card className="glass relative overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
-          <div className="absolute top-0 right-0 p-3 opacity-10">
-            <Users className="size-20 text-primary" />
-          </div>
+        <Card>
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Registered Users</CardDescription>
-            <CardTitle className="text-3xl font-extrabold tracking-tight text-foreground">{users.length}</CardTitle>
+            <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">{users.length}</CardTitle>
           </CardHeader>
           <CardContent className="pt-2 text-xs text-muted-foreground">
             Platform accounts active across all portal spaces.
           </CardContent>
         </Card>
 
-        <Card className="glass relative overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
-          <div className="absolute top-0 right-0 p-3 opacity-10">
-            <BookOpen className="size-20 text-primary" />
-          </div>
+        <Card>
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Active Catalog Journals</CardDescription>
-            <CardTitle className="text-3xl font-extrabold tracking-tight text-foreground">{journals.length}</CardTitle>
+            <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">{journals.length}</CardTitle>
           </CardHeader>
           <CardContent className="pt-2 text-xs text-muted-foreground">
             Academic publishing tracks currently accepting submissions.
           </CardContent>
         </Card>
 
-        <Card className="glass relative overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
-          <div className="absolute top-0 right-0 p-3 opacity-10">
-            <Activity className="size-20 text-primary" />
-          </div>
+        <Card>
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">System Cluster Health</CardDescription>
-            <CardTitle className="text-3xl font-extrabold tracking-tight text-foreground">
+            <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">
               {health.filter((h) => h.status === "online").length}/{health.length}
             </CardTitle>
           </CardHeader>
@@ -190,7 +176,7 @@ export function AdminDashboardClient({
       </div>
 
       {/* Services Health Monitor */}
-      <Card className="glass border-border/40 shadow-md">
+      <Card className="border-border/40">
         <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/20">
           <div>
             <CardTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
@@ -216,7 +202,7 @@ export function AdminDashboardClient({
             {health.map((service) => (
               <div
                 key={service.name}
-                className="flex items-center justify-between p-3.5 rounded-xl border border-border/40 bg-background/50 hover:bg-background/80 transition-all duration-200"
+                className="flex items-center justify-between p-3.5 rounded-lg border border-border/40 bg-background/50 hover:bg-background/80 transition-colors duration-150"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">{service.name}</p>
@@ -253,7 +239,7 @@ export function AdminDashboardClient({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* User Account Controls */}
-        <Card className="glass border-border/40 shadow-md lg:col-span-2">
+        <Card className="border-border/40 lg:col-span-2">
           <CardHeader className="pb-4 border-b border-border/20">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
@@ -336,7 +322,7 @@ export function AdminDashboardClient({
         {/* Catalog Control Area */}
         <div className="space-y-6">
           {/* New Journal Form */}
-          <Card className="glass border-border/40 shadow-md">
+          <Card className="border-border/40">
             <CardHeader className="pb-4 border-b border-border/20">
               <CardTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
                 <Plus className="size-5 text-primary" /> Create Journal
@@ -373,12 +359,11 @@ export function AdminDashboardClient({
 
                 <div className="space-y-1.5">
                   <Label htmlFor="publisher" className="text-xs font-semibold">Publisher Affiliation</Label>
-                  <select
+                  <NativeSelect
                     id="publisher"
                     value={newJournalPublisherId}
                     onChange={(e) => setNewJournalPublisherId(e.target.value)}
                     required
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
                   >
                     <option value="" disabled>-- Select Publisher --</option>
                     {publishers.map((pub) => (
@@ -386,7 +371,7 @@ export function AdminDashboardClient({
                         {pub.name}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </div>
 
                 <div className="space-y-1.5">
@@ -425,7 +410,7 @@ export function AdminDashboardClient({
           </Card>
 
           {/* List of Journals */}
-          <Card className="glass border-border/40 shadow-md">
+          <Card className="border-border/40">
             <CardHeader className="pb-4 border-b border-border/20">
               <CardTitle className="text-sm font-semibold tracking-tight text-foreground">
                 Current Catalog Entries

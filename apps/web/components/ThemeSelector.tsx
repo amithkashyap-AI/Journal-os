@@ -53,9 +53,9 @@ export function ThemeSelector() {
           <button
             key={t.id}
             onClick={() => setTheme(t.id)}
-            className={`relative flex flex-col text-left rounded-xl p-5 border transition-all duration-300 group cursor-pointer ${
+            className={`relative flex flex-col text-left rounded-lg p-5 border transition-colors duration-150 group cursor-pointer ${
               isActive
-                ? "border-primary bg-primary/5 shadow-md scale-[1.02]"
+                ? "border-primary bg-primary/5"
                 : "border-border bg-secondary/30 hover:bg-secondary/60 hover:border-border/80"
             }`}
           >

@@ -4,8 +4,7 @@ import { useState, useTransition } from "react";
 import { UserPlus } from "lucide-react";
 import type { PublicUser } from "@rpos/types";
 import { assignReviewer } from "../../lib/review-actions";
-import { Button } from "../ui/button";
-import { NativeSelect } from "../ui/select";
+import { Button, NativeSelect } from "@rpos/ui";
 
 export function AssignReviewerForm({
   submissionId,

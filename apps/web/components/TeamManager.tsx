@@ -5,11 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Users, UserPlus, Trash2 } from "lucide-react";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { NativeSelect } from "./ui/select";
-import { Badge } from "./ui/badge";
+import { Button, Input, Label, NativeSelect, Badge } from "@rpos/ui";
 import { addMember, removeMember } from "../lib/member-actions";
 import type { MemberDto } from "../lib/catalog";
 

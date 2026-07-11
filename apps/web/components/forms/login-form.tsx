@@ -6,9 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@rpos/validation";
 import { LogIn } from "lucide-react";
 import { login } from "../../lib/auth-actions";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
+import { Button, Input, Label } from "@rpos/ui";
 
 const DEV_QUICK_LOGINS = [
   { role: "Admin", email: "admin@rpos.dev" },

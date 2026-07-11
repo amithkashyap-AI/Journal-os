@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Copy, Eye, EyeOff, KeyRound, RefreshCw, Trash2 } from "lucide-react";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
+import { Button, Badge } from "@rpos/ui";
 import {
   createApiKey,
   deleteApiKey,

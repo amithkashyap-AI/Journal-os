@@ -7,11 +7,7 @@ import { z } from "zod";
 import { BookPlus, Building2 } from "lucide-react";
 import { createJournal, createPublisher } from "../../lib/journal-actions";
 import type { PublisherDto } from "../../lib/catalog";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { NativeSelect } from "../ui/select";
-import { Textarea } from "../ui/textarea";
+import { Button, Input, Label, NativeSelect, Textarea } from "@rpos/ui";
 
 const publisherFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
