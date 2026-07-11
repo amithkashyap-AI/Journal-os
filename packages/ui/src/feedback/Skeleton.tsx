@@ -19,7 +19,7 @@ export function Skeleton({ className }: SkeletonProps) {
 /** Stats card skeleton */
 export function SkeletonStatsCard({ className }: SkeletonProps) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+    <div className={cn("rounded-lg border border-border bg-card p-5", className)}>
       <div className="flex items-start justify-between">
         <div className="space-y-3">
           <Skeleton className="h-3 w-20" />
@@ -49,7 +49,7 @@ export function SkeletonTableRow({ columns = 4, className }: SkeletonProps & { c
 /** Card skeleton */
 export function SkeletonCard({ className }: SkeletonProps) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-6 space-y-4", className)}>
+    <div className={cn("rounded-lg border border-border bg-card p-6 space-y-4", className)}>
       <Skeleton className="h-5 w-2/3" />
       <Skeleton className="h-4 w-full" />
       <Skeleton className="h-4 w-4/5" />

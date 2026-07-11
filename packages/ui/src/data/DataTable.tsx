@@ -85,7 +85,7 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full min-w-max text-sm">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -120,7 +120,7 @@ export function DataTable<TData, TValue>({
                   className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/30"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3">
+                    <td key={cell.id} className="px-4 py-2.5">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}

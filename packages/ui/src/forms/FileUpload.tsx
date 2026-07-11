@@ -78,9 +78,9 @@ export function FileUpload({
         onDrop={disabled ? undefined : handleDrop}
         onClick={() => !disabled && inputRef.current?.click()}
         className={cn(
-          "group relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-all duration-200",
+          "group relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-8 text-center transition-colors duration-150",
           dragging
-            ? "border-primary bg-primary/5 shadow-[0_0_0_4px] shadow-primary/10"
+            ? "border-primary bg-primary/5"
             : "border-border hover:border-primary/40 hover:bg-muted/30",
           disabled && "cursor-not-allowed opacity-50",
           displayFile && "border-success/40 bg-success/5",

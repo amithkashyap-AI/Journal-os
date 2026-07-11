@@ -26,7 +26,7 @@ export function NavSubMenu({ label, icon, children, defaultOpen = false }: NavSu
           {icon}
         </button>
         {isOpen && (
-          <div className="absolute left-16 top-0 z-50 min-w-40 rounded-lg border border-border bg-sidebar-background p-1.5 shadow-md space-y-1">
+          <div className="absolute left-16 top-0 z-50 min-w-40 rounded-lg border border-border bg-sidebar-background p-1.5 space-y-1">
             <p className="px-2 py-1 text-xs font-semibold text-muted-foreground border-b border-border/45 pb-1.5 mb-1">{label}</p>
             <div className="space-y-0.5">
               {children}

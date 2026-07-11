@@ -102,7 +102,7 @@ export function Sidebar({ children, logo, footer }: SidebarProps) {
         {/* Collapse toggle */}
         <button
           onClick={toggle}
-          className="absolute -right-3 top-20 z-40 hidden md:flex size-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-background text-sidebar-muted shadow-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground cursor-pointer"
+          className="absolute -right-3 top-20 z-40 hidden md:flex size-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-background text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground cursor-pointer"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (
