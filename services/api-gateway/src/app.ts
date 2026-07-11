@@ -14,6 +14,7 @@ export interface Upstreams {
   notification: string;
   journal: string;
   files: string;
+  ai: string;
 }
 
 export interface AppOptions {
@@ -82,6 +83,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     { prefix: "/api/journals", upstream: upstreams.journal, rewritePrefix: "/v1/journals" },
     { prefix: "/api/publishers", upstream: upstreams.journal, rewritePrefix: "/v1/publishers" },
     { prefix: "/api/files", upstream: upstreams.files, rewritePrefix: "/v1/files" },
+    { prefix: "/api/ai", upstream: upstreams.ai, rewritePrefix: "/v1/ai" },
     // The notification POST endpoint is service-to-service only; expose reads alone.
     {
       prefix: "/api/notifications",

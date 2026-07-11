@@ -36,6 +36,7 @@ describe("api gateway", () => {
       notification: await startStub("notification"),
       journal: await startStub("journal"),
       files: await startStub("files"),
+      ai: await startStub("ai"),
     };
     app = buildApp({
       upstreams: {
@@ -45,6 +46,7 @@ describe("api gateway", () => {
         notification: stubs.notification!.url,
         journal: stubs.journal!.url,
         files: stubs.files!.url,
+        ai: stubs.ai!.url,
       },
       rateLimitMax: 100,
     });
@@ -192,6 +194,7 @@ describe("api gateway", () => {
         notification: stubs.notification!.url,
         journal: stubs.journal!.url,
         files: stubs.files!.url,
+        ai: stubs.ai!.url,
       },
       rateLimitMax: 3,
     });
@@ -217,6 +220,7 @@ describe("api gateway", () => {
         notification: stubs.notification!.url,
         journal: stubs.journal!.url,
         files: stubs.files!.url,
+        ai: stubs.ai!.url,
       },
       rateLimitMax: 2,
       apiKeyRateLimitMax: 2,
