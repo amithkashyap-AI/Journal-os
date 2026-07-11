@@ -262,4 +262,28 @@ describe("notification service", () => {
       "e1@example.com",
     ]);
   });
+
+  it("reports platform-wide delivery counts to an admin, and forbids everyone else", async () => {
+    mailer.failWith = new Error("smtp down");
+    await notify({ userId: "author-1", type: "SUBMISSION_DECISION", data: { title: "Paper", status: "REJECTED" } });
+    mailer.failWith = undefined;
+    await notify({ userId: "author-1", type: "SUBMISSION_DECISION", data: { title: "Paper", status: "ACCEPTED" } });
+
+    const adminToken = app.jwt.sign({ sub: "admin-1", email: "a@example.com", roles: ["ADMIN"] });
+    const res = await app.inject({
+      method: "GET",
+      url: "/v1/notifications/summary",
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().counts).toEqual({ PENDING: 0, SENT: 1, FAILED: 1 });
+
+    const authorToken = app.jwt.sign({ sub: "author-1", email: "ada@example.com", roles: ["AUTHOR"] });
+    const forbidden = await app.inject({
+      method: "GET",
+      url: "/v1/notifications/summary",
+      headers: { authorization: `Bearer ${authorToken}` },
+    });
+    expect(forbidden.statusCode).toBe(403);
+  });
 });

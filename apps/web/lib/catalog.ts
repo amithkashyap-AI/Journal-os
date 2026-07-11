@@ -9,6 +9,7 @@ export interface JournalDto {
   slug: string;
   issn: string | null;
   description: string | null;
+  createdAt: string;
 }
 
 export interface PublisherDto {
@@ -17,6 +18,7 @@ export interface PublisherDto {
   slug: string;
   website: string | null;
   ownerId: string | null;
+  createdAt: string;
 }
 
 export async function fetchJournals(): Promise<JournalDto[]> {

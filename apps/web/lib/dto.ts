@@ -11,6 +11,7 @@ export interface SubmissionDto {
   manuscriptUrl: string | null;
   doi: string | null;
   submittedAt: string | null;
+  publishedAt: string | null;
   createdAt: string;
 }
 

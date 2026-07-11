@@ -6,6 +6,8 @@ import { AiUnavailableError, type AiClient } from "../src/ollama-client.js";
 class FakeAiClient implements AiClient {
   keywords: string[] = ["relativity", "electrodynamics"];
   tightened = "A tighter abstract.";
+  summary = "Submissions are trending up this month.";
+  answer = "Yes, based on the data provided.";
   failWith?: Error;
 
   async suggestKeywords(_title: string, _abstract: string): Promise<string[]> {
@@ -16,6 +18,16 @@ class FakeAiClient implements AiClient {
   async tightenAbstract(_abstract: string): Promise<string> {
     if (this.failWith) throw this.failWith;
     return this.tightened;
+  }
+
+  async generateExecutiveSummary(_stats: Record<string, string | number>): Promise<string> {
+    if (this.failWith) throw this.failWith;
+    return this.summary;
+  }
+
+  async answerQuestion(_question: string, _context: string): Promise<string> {
+    if (this.failWith) throw this.failWith;
+    return this.answer;
   }
 }
 
@@ -31,6 +43,11 @@ describe("ai service", () => {
 
   function authHeader() {
     const token = app.jwt.sign({ sub: "author-1", email: "author-1@example.com", roles: ["AUTHOR"] });
+    return { authorization: `Bearer ${token}` };
+  }
+
+  function adminHeader() {
+    const token = app.jwt.sign({ sub: "admin-1", email: "admin-1@example.com", roles: ["ADMIN"] });
     return { authorization: `Bearer ${token}` };
   }
 
@@ -99,5 +116,43 @@ describe("ai service", () => {
     });
     expect(res.statusCode).toBe(503);
     expect(res.json()).toEqual({ error: "AI_UNAVAILABLE" });
+  });
+
+  it("generates an executive summary from real stats, for admins only", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/ai/executive-summary",
+      headers: adminHeader(),
+      payload: { stats: { journals: 12, submissions: 340 } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ summary: ai.summary });
+
+    const forbidden = await app.inject({
+      method: "POST",
+      url: "/v1/ai/executive-summary",
+      headers: authHeader(),
+      payload: { stats: { journals: 12 } },
+    });
+    expect(forbidden.statusCode).toBe(403);
+  });
+
+  it("answers a grounded question from real context, for admins only", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/ai/ask",
+      headers: adminHeader(),
+      payload: { question: "How many journals?", context: "{\"journals\":12}" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ answer: ai.answer });
+
+    const forbidden = await app.inject({
+      method: "POST",
+      url: "/v1/ai/ask",
+      headers: authHeader(),
+      payload: { question: "How many journals?", context: "{}" },
+    });
+    expect(forbidden.statusCode).toBe(403);
   });
 });

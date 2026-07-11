@@ -140,5 +140,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
     },
   );
 
+  // Platform-wide delivery counts for the admin executive dashboard.
+  app.get("/v1/notifications/summary", { onRequest: [app.authenticate] }, async (request, reply) => {
+    if (!request.user.roles.some((role) => role === "ADMIN" || role === "SUPERADMIN")) {
+      return reply.code(403).send({ error: "FORBIDDEN" });
+    }
+    return reply.send({ counts: await notifications.countByStatus() });
+  });
+
   return app;
 }

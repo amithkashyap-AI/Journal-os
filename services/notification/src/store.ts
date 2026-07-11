@@ -42,6 +42,8 @@ export interface NotificationStore {
   markRead(id: string, userId: string): Promise<StoredNotification | null>;
   /** Marks all of the user's unread notifications read; returns how many changed. */
   markAllRead(userId: string): Promise<number>;
+  /** Platform-wide delivery counts by status — for the admin executive dashboard. */
+  countByStatus(): Promise<Record<NotificationStatus, number>>;
 }
 
 export class InMemoryNotificationStore implements NotificationStore {
@@ -121,5 +123,13 @@ export class InMemoryNotificationStore implements NotificationStore {
       }
     }
     return changed;
+  }
+
+  async countByStatus(): Promise<Record<NotificationStatus, number>> {
+    const counts: Record<NotificationStatus, number> = { PENDING: 0, SENT: 0, FAILED: 0 };
+    for (const notification of this.byId.values()) {
+      counts[notification.status] += 1;
+    }
+    return counts;
   }
 }

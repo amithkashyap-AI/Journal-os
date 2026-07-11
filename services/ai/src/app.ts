@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import fastifyJwt from "@fastify/jwt";
-import { suggestKeywordsSchema, tightenAbstractSchema } from "@rpos/validation";
+import { askAiSchema, executiveSummarySchema, suggestKeywordsSchema, tightenAbstractSchema } from "@rpos/validation";
 import type { JwtPayload } from "@rpos/types";
 import { AiUnavailableError, type AiClient } from "./ollama-client.js";
 
@@ -21,6 +21,10 @@ export interface AppOptions {
   ai: AiClient;
   jwtSecret: string;
   logger?: boolean;
+}
+
+function isAdmin(roles: readonly string[]): boolean {
+  return roles.includes("ADMIN") || roles.includes("SUPERADMIN");
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -90,6 +94,56 @@ export function buildApp(options: AppOptions): FastifyInstance {
       }
     },
   );
+
+  app.post(
+    "/v1/ai/executive-summary",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      if (!isAdmin(request.user.roles)) {
+        return reply.code(403).send({ error: "FORBIDDEN" });
+      }
+      const parsed = executiveSummarySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({
+          error: "VALIDATION_ERROR",
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      try {
+        const summary = await ai.generateExecutiveSummary(parsed.data.stats);
+        return reply.send({ summary });
+      } catch (error) {
+        if (error instanceof AiUnavailableError) {
+          return reply.code(503).send({ error: "AI_UNAVAILABLE" });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.post("/v1/ai/ask", { onRequest: [app.authenticate] }, async (request, reply) => {
+    if (!isAdmin(request.user.roles)) {
+      return reply.code(403).send({ error: "FORBIDDEN" });
+    }
+    const parsed = askAiSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: "VALIDATION_ERROR",
+        details: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    try {
+      const answer = await ai.answerQuestion(parsed.data.question, parsed.data.context);
+      return reply.send({ answer });
+    } catch (error) {
+      if (error instanceof AiUnavailableError) {
+        return reply.code(503).send({ error: "AI_UNAVAILABLE" });
+      }
+      throw error;
+    }
+  });
 
   return app;
 }

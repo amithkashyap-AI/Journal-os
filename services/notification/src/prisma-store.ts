@@ -1,6 +1,12 @@
 import { getPrisma } from "@rpos/database";
 import type { UserRole } from "@rpos/types";
-import type { NotificationStore, Recipient, RoleRecipient, StoredNotification } from "./store.js";
+import type {
+  NotificationStatus,
+  NotificationStore,
+  Recipient,
+  RoleRecipient,
+  StoredNotification,
+} from "./store.js";
 
 export class PrismaNotificationStore implements NotificationStore {
   private readonly db = getPrisma();
@@ -65,5 +71,17 @@ export class PrismaNotificationStore implements NotificationStore {
       data: { readAt: new Date() },
     });
     return count;
+  }
+
+  async countByStatus(): Promise<Record<NotificationStatus, number>> {
+    const grouped = await this.db.notification.groupBy({
+      by: ["status"],
+      _count: { status: true },
+    });
+    const counts: Record<NotificationStatus, number> = { PENDING: 0, SENT: 0, FAILED: 0 };
+    for (const row of grouped) {
+      counts[row.status as NotificationStatus] = row._count.status;
+    }
+    return counts;
   }
 }
