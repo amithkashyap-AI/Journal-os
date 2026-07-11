@@ -8,6 +8,7 @@ datasource db {
 }
 
 enum UserRole {
+  SUPERADMIN
   ADMIN
   PUBLISHER
   EDITOR
@@ -56,8 +57,64 @@ model User {
   notifications    Notification[]
   ownedPublishers  Publisher[]
   publisherMember  PublisherMember[]
+  customRoles      UserCustomRole[]
 
   @@map("users")
+}
+
+/// A named role an Admin can define, with its own permission set — additive
+/// to the fixed UserRole enum, not a replacement. System rows (isSystem)
+/// mirror the 7 UserRole enum values for display/documentation only; the
+/// enum remains the actual mechanism for those base roles. Only isSystem=false
+/// rows are ever assignable via UserCustomRole.
+model Role {
+  id            String   @id @default(cuid())
+  key           String   @unique
+  name          String
+  description   String?
+  isSystem      Boolean  @default(false)
+  createdByUserId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  permissions RolePermission[]
+  users       UserCustomRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(cuid())
+  key         String @unique
+  description String
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// Assignment of a custom (isSystem=false) Role to a user — additive to
+/// their base UserRole[] array, never a replacement for it.
+model UserCustomRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_custom_roles")
 }
 
 model Publisher {

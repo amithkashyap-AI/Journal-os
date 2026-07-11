@@ -44,7 +44,10 @@ export default async function SubmissionPage({
     submission: SubmissionDto;
     allowedActions: SubmissionAction[];
   };
-  const isStaff = user.roles.includes("EDITOR") || user.roles.includes("ADMIN");
+  const isStaff =
+    user.roles.includes("EDITOR") ||
+    user.roles.includes("ADMIN") ||
+    user.roles.includes("SUPERADMIN");
 
   let reviews: ReviewDto[] = [];
   let reviewers: PublicUser[] = [];

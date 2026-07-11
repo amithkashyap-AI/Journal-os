@@ -15,7 +15,10 @@ export default async function DashboardPage() {
   const meRes = await apiFetch(AUTH_API, "/v1/auth/me");
   if (!meRes.ok) redirect("/login");
   const { user } = (await meRes.json()) as { user: PublicUser };
-  const isStaff = user.roles.includes("EDITOR") || user.roles.includes("ADMIN");
+  const isStaff =
+    user.roles.includes("EDITOR") ||
+    user.roles.includes("ADMIN") ||
+    user.roles.includes("SUPERADMIN");
 
   const listRes = await apiFetch(SUBMISSION_API, "/v1/submissions");
   const { submissions } = (await listRes.json()) as { submissions: SubmissionDto[] };
@@ -54,7 +57,7 @@ export default async function DashboardPage() {
         title={isStaff ? "Editorial Dashboard" : "Author Workspace"}
         description={`${user.name} · ${user.roles.join(", ")}`}
         actions={
-          user.roles.includes("ADMIN") ? (
+          user.roles.includes("ADMIN") || user.roles.includes("SUPERADMIN") ? (
             <Link
               href="/dashboard/admin"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"

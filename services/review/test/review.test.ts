@@ -128,7 +128,7 @@ describe("review service", () => {
     expect(filed).toHaveLength(2);
     expect(filed).toContainEqual(
       expect.objectContaining({
-        role: ["ADMIN"],
+        role: ["ADMIN", "SUPERADMIN"],
         type: "REVIEW_FILED",
         data: { title: "Paper One", recommendation: "MINOR_REVISION" },
       }),
@@ -238,5 +238,21 @@ describe("review service", () => {
     });
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toBe("VALIDATION_ERROR");
+  });
+
+  it("lets a user with only the reviews.assign permission (no EDITOR role) assign a reviewer", async () => {
+    const token = app.jwt.sign({
+      sub: "perm-user",
+      email: "perm-user@example.com",
+      roles: ["AUTHOR"],
+      permissions: ["reviews.assign"],
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/submissions/sub-1/reviews",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { reviewerId: "reviewer-1" },
+    });
+    expect(res.statusCode).toBe(201);
   });
 });

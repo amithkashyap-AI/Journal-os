@@ -11,7 +11,7 @@ import { NavLink, SidebarSection } from "@rpos/ui";
 import type { UserRole } from "@rpos/types";
 
 export function SidebarNav({ roles }: { roles: UserRole[] }) {
-  const isAdmin = roles.includes("ADMIN");
+  const isAdmin = roles.includes("ADMIN") || roles.includes("SUPERADMIN");
   const isEditor = roles.includes("EDITOR");
   const isPublisher = roles.includes("PUBLISHER");
   const isReviewer = roles.includes("REVIEWER");

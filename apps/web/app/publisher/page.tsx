@@ -4,6 +4,7 @@ import { PageHeader } from "@rpos/ui";
 import { PublisherDashboardClient } from "../../components/PublisherDashboardClient";
 import { apiFetch, AUTH_API, getToken, SUBMISSION_API } from "../../lib/api";
 import { fetchJournals, fetchMyPublishers, fetchPublisherMembers } from "../../lib/catalog";
+import { fetchWorkflowRules } from "../../lib/workflow-actions";
 import type { SubmissionDto } from "../../lib/dto";
 
 export default async function PublisherDashboardPage() {
@@ -13,7 +14,11 @@ export default async function PublisherDashboardPage() {
   const meRes = await apiFetch(AUTH_API, "/v1/auth/me");
   if (!meRes.ok) redirect("/login");
   const { user } = (await meRes.json()) as { user: PublicUser };
-  if (!user.roles.includes("PUBLISHER") && !user.roles.includes("ADMIN")) {
+  if (
+    !user.roles.includes("PUBLISHER") &&
+    !user.roles.includes("ADMIN") &&
+    !user.roles.includes("SUPERADMIN")
+  ) {
     redirect("/dashboard");
   }
 
@@ -48,6 +53,9 @@ export default async function PublisherDashboardPage() {
   const membersByPublisher = Object.fromEntries(
     await Promise.all(publishers.map(async (p) => [p.id, await fetchPublisherMembers(p.id)] as const)),
   );
+  const workflowRulesByPublisher = Object.fromEntries(
+    await Promise.all(publishers.map(async (p) => [p.id, await fetchWorkflowRules(p.id)] as const)),
+  );
 
   return (
     <div className="space-y-8">
@@ -61,6 +69,7 @@ export default async function PublisherDashboardPage() {
         initialReadyToPublish={readyToPublish}
         initialRecentlyPublished={recentlyPublished}
         initialMembersByPublisher={membersByPublisher}
+        initialWorkflowRulesByPublisher={workflowRulesByPublisher}
       />
     </div>
   );

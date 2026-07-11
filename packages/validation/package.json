@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@rpos/types": "workspace:*",
+    "@rpos/workflow-engine": "workspace:*",
     "zod": "^3.24.1"
   },
   "devDependencies": {

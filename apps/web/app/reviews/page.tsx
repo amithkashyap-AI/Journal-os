@@ -14,7 +14,10 @@ export default async function ReviewsPage() {
   const meRes = await apiFetch(AUTH_API, "/v1/auth/me");
   if (!meRes.ok) redirect("/login");
   const { user } = (await meRes.json()) as { user: PublicUser };
-  const isStaff = user.roles.includes("EDITOR") || user.roles.includes("ADMIN");
+  const isStaff =
+    user.roles.includes("EDITOR") ||
+    user.roles.includes("ADMIN") ||
+    user.roles.includes("SUPERADMIN");
 
   const reviewsRes = await apiFetch(REVIEW_API, "/v1/reviews");
   const { reviews } = (await reviewsRes.json()) as { reviews: ReviewDto[] };

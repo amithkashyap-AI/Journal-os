@@ -13,7 +13,10 @@ export default async function JournalsPage() {
   const meRes = await apiFetch(AUTH_API, "/v1/auth/me");
   if (!meRes.ok) redirect("/login");
   const { user } = (await meRes.json()) as { user: PublicUser };
-  const isManager = user.roles.includes("ADMIN") || user.roles.includes("PUBLISHER");
+  const isManager =
+    user.roles.includes("ADMIN") ||
+    user.roles.includes("SUPERADMIN") ||
+    user.roles.includes("PUBLISHER");
 
   const [journals, publishers] = await Promise.all([fetchJournals(), fetchPublishers()]);
 

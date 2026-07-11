@@ -10,11 +10,15 @@ import {
   AlertCircle,
   Plus,
   Loader2,
+  ShieldPlus,
 } from "lucide-react";
 import type { PublicUser, UserRole } from "@rpos/types";
 import type { JournalDto, PublisherDto } from "../lib/catalog";
+import type { RoleDto } from "../lib/role-actions";
 import { updateUserRoles, checkServicesHealth, type ServiceStatus } from "../lib/auth-actions";
 import { createJournal } from "../lib/journal-actions";
+import { CustomRolesManager } from "./CustomRolesManager";
+import { CreateAdminForm } from "./forms/create-admin-form";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Label, NativeSelect, Textarea } from "@rpos/ui";
 
 interface AdminDashboardClientProps {
@@ -22,6 +26,8 @@ interface AdminDashboardClientProps {
   initialHealth: ServiceStatus[];
   initialJournals: JournalDto[];
   initialPublishers: PublisherDto[];
+  initialRoles: RoleDto[];
+  isSuperadmin: boolean;
 }
 
 export function AdminDashboardClient({
@@ -29,6 +35,8 @@ export function AdminDashboardClient({
   initialHealth,
   initialJournals,
   initialPublishers,
+  initialRoles,
+  isSuperadmin,
 }: AdminDashboardClientProps) {
   const [users, setUsers] = useState<PublicUser[]>(initialUsers);
   const [health, setHealth] = useState(initialHealth);
@@ -142,36 +150,45 @@ export function AdminDashboardClient({
     <div className="space-y-8">
       {/* Overview Dashboard Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Registered Users</CardDescription>
-            <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">{users.length}</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2 text-xs text-muted-foreground">
-            Platform accounts active across all portal spaces.
-          </CardContent>
+        <Card className="group relative overflow-hidden shadow-xs transition-all duration-200 hover:shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-brand-50/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:to-brand-900/10" />
+          <div className="relative">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Registered Users</CardDescription>
+              <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">{users.length}</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-2 text-xs text-muted-foreground">
+              Platform accounts active across all portal spaces.
+            </CardContent>
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Active Catalog Journals</CardDescription>
-            <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">{journals.length}</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2 text-xs text-muted-foreground">
-            Academic publishing tracks currently accepting submissions.
-          </CardContent>
+        <Card className="group relative overflow-hidden shadow-xs transition-all duration-200 hover:shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-brand-50/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:to-brand-900/10" />
+          <div className="relative">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Active Catalog Journals</CardDescription>
+              <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">{journals.length}</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-2 text-xs text-muted-foreground">
+              Academic publishing tracks currently accepting submissions.
+            </CardContent>
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">System Cluster Health</CardDescription>
-            <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">
-              {health.filter((h) => h.status === "online").length}/{health.length}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2 text-xs text-muted-foreground">
-            Microservices operating normally within the workspace cluster.
-          </CardContent>
+        <Card className="group relative overflow-hidden shadow-xs transition-all duration-200 hover:shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-brand-50/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:to-brand-900/10" />
+          <div className="relative">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">System Cluster Health</CardDescription>
+              <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">
+                {health.filter((h) => h.status === "online").length}/{health.length}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-2 text-xs text-muted-foreground">
+              Microservices operating normally within the workspace cluster.
+            </CardContent>
+          </div>
         </Card>
       </div>
 
@@ -288,17 +305,19 @@ export function AdminDashboardClient({
                             {allAvailableRoles.map((role) => {
                               const isActive = user.roles.includes(role);
                               const isSaving = savingUserId === user.id;
+                              const isLocked = role === "ADMIN" && !isSuperadmin;
                               return (
                                 <button
                                   key={role}
                                   type="button"
                                   onClick={() => handleRoleToggle(user.id, role)}
-                                  disabled={isSaving}
+                                  disabled={isSaving || isLocked}
+                                  title={isLocked ? "Only a Superadmin can grant or revoke Admin" : undefined}
                                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer select-none active:scale-95 ${
                                     isActive
                                       ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
                                       : "bg-background text-muted-foreground border-border/40 hover:bg-secondary/40"
-                                  } ${isSaving ? "opacity-50 pointer-events-none" : ""}`}
+                                  } ${isSaving || isLocked ? "opacity-50 pointer-events-none" : ""}`}
                                 >
                                   {isActive && <Check className="size-3 shrink-0" />}
                                   {role}
@@ -436,6 +455,39 @@ export function AdminDashboardClient({
           </Card>
         </div>
 
+      </div>
+
+      {/* Custom Roles & Superadmin Controls */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="border-border/40 lg:col-span-2">
+          <CardHeader className="pb-4 border-b border-border/20">
+            <CardTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
+              <ShieldPlus className="size-5 text-primary" /> Custom Roles
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground mt-0.5">
+              Define additive permission sets and assign them to users, on top of their base roles.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <CustomRolesManager initialRoles={initialRoles} users={users} />
+          </CardContent>
+        </Card>
+
+        {isSuperadmin && (
+          <Card className="border-border/40">
+            <CardHeader className="pb-4 border-b border-border/20">
+              <CardTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
+                <UserCheck className="size-5 text-primary" /> Create Admin
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                Superadmin-only: there is no self-registration path to Admin.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <CreateAdminForm />
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

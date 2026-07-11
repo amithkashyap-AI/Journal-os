@@ -37,7 +37,7 @@ const ALLOWED_MIME_TYPES = new Set([
 
 // Editorial staff see every manuscript; reviewers only the ones on
 // submissions they are assigned to (checked per request via the store).
-const STAFF_ROLES: UserRole[] = ["EDITOR", "ADMIN"];
+const STAFF_ROLES: UserRole[] = ["EDITOR", "ADMIN", "SUPERADMIN"];
 
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });

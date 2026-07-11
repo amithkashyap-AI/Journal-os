@@ -13,7 +13,10 @@ export default async function SettingsPage() {
   const meRes = await apiFetch(AUTH_API, "/v1/auth/me");
   if (!meRes.ok) redirect("/login");
   const { user } = (await meRes.json()) as { user: PublicUser };
-  const canManageApiKeys = user.roles.includes("PUBLISHER") || user.roles.includes("ADMIN");
+  const canManageApiKeys =
+    user.roles.includes("PUBLISHER") ||
+    user.roles.includes("ADMIN") ||
+    user.roles.includes("SUPERADMIN");
 
   const publishers = canManageApiKeys ? await fetchMyPublishers() : [];
   const apiKeys = await Promise.all(publishers.map((p) => fetchApiKey(p.id)));

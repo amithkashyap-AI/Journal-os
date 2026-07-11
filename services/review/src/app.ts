@@ -36,7 +36,12 @@ function hasAnyRole(user: JwtPayload, ...roles: UserRole[]): boolean {
 }
 
 function isAdmin(user: JwtPayload): boolean {
-  return hasAnyRole(user, "ADMIN");
+  return hasAnyRole(user, "ADMIN", "SUPERADMIN");
+}
+
+/** Additive custom-role permission check — never replaces a role check, only widens it. */
+function hasPermission(user: JwtPayload, key: string): boolean {
+  return user.permissions?.includes(key) ?? false;
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -86,9 +91,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
       }
 
       // The assigner must be an editor member of THIS journal's publisher,
-      // not merely hold the EDITOR role anywhere.
+      // not merely hold the EDITOR role anywhere — unless they hold the
+      // reviews.assign custom-role permission, which is a deliberate global
+      // grant (not itself tenant-scoped in this first slice).
       const canAssign =
         isAdmin(request.user) ||
+        hasPermission(request.user, "reviews.assign") ||
         (hasAnyRole(request.user, "EDITOR") &&
           (await reviews.isPublisherEditorMember(submission.journalId, request.user.sub)));
       if (!canAssign) {
@@ -162,6 +170,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         review !== null &&
         (review.reviewerId === request.user.sub ||
           isAdmin(request.user) ||
+          hasPermission(request.user, "reviews.assign") ||
           (await canEditorAccessReview(review, request.user)));
       if (!review || !canRead) {
         return reply.code(404).send({ error: "NOT_FOUND" });
@@ -179,6 +188,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         review !== null &&
         (review.reviewerId === request.user.sub ||
           isAdmin(request.user) ||
+          hasPermission(request.user, "reviews.assign") ||
           (await canEditorAccessReview(review, request.user)));
       if (!review || !canRead) {
         return reply.code(404).send({ error: "NOT_FOUND" });
@@ -207,11 +217,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
       const submission = await reviews.findSubmission(review.submissionId);
       if (submission) {
-        // Same tenant-scoping as REVIEW_ASSIGNED's notification: ADMIN stays
-        // a platform-wide broadcast, EDITOR is scoped to this journal's
+        // Same tenant-scoping as REVIEW_ASSIGNED's notification: ADMIN/SUPERADMIN
+        // stay a platform-wide broadcast, EDITOR is scoped to this journal's
         // actual publisher members via the store, not every editor globally.
         void notifier.notify({
-          role: ["ADMIN"],
+          role: ["ADMIN", "SUPERADMIN"],
           type: "REVIEW_FILED",
           data: { title: submission.title, recommendation: parsed.data.recommendation },
         });

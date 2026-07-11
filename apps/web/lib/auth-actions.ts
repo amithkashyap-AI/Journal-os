@@ -2,9 +2,10 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { loginSchema, registerSchema } from "@rpos/validation";
+import { createAdminSchema, loginSchema, registerSchema } from "@rpos/validation";
 import type { PublicUser, UserRole } from "@rpos/types";
 import {
+  AI_API,
   apiFetch,
   AUTH_API,
   FILE_API,
@@ -49,7 +50,7 @@ async function loginRequest(email: string, password: string): Promise<LoginResul
 
 /** Where a freshly logged-in user lands, by role priority. */
 function homeRouteFor(roles: UserRole[]): string {
-  if (roles.includes("ADMIN") || roles.includes("EDITOR")) return "/dashboard";
+  if (roles.includes("SUPERADMIN") || roles.includes("ADMIN") || roles.includes("EDITOR")) return "/dashboard";
   if (roles.includes("PUBLISHER")) return "/publisher";
   if (roles.includes("REVIEWER")) return "/reviews";
   return "/dashboard";
@@ -90,6 +91,22 @@ export async function logout(): Promise<void> {
   const store = await cookies();
   store.delete(SESSION_COOKIE);
   redirect("/login");
+}
+
+/** Superadmin-only: provisions a new Admin account directly (no self-registration path exists for ADMIN). */
+export async function createAdmin(input: unknown): Promise<{ user: PublicUser } | ActionError> {
+  const parsed = createAdminSchema.safeParse(input);
+  if (!parsed.success) return { error: "Check your details — password must be 8+ characters." };
+
+  const res = await apiFetch(AUTH_API, "/v1/admins", {
+    method: "POST",
+    body: JSON.stringify(parsed.data),
+  });
+  if (res.status === 403) return { error: "Only a Superadmin can create Admin accounts." };
+  if (res.status === 409) return { error: "That email is already registered." };
+  if (!res.ok) return { error: "Could not create the admin account." };
+
+  return (await res.json()) as { user: PublicUser };
 }
 
 export async function listAllUsers(): Promise<{ users?: PublicUser[]; error?: string }> {
@@ -137,6 +154,7 @@ export async function checkServicesHealth(): Promise<ServiceStatus[]> {
     { name: "Notification Service", url: NOTIFICATION_API },
     { name: "Journal Service", url: JOURNAL_API },
     { name: "File Storage Service", url: FILE_API },
+    { name: "AI Service", url: AI_API },
   ];
 
   return Promise.all(
