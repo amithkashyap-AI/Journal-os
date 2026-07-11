@@ -3,6 +3,7 @@ import { getToken, apiFetch, AUTH_API } from "../../../lib/api";
 import { listAllUsers, checkServicesHealth } from "../../../lib/auth-actions";
 import { fetchJournals, fetchPublishers } from "../../../lib/catalog";
 import { AdminDashboardClient } from "../../../components/AdminDashboardClient";
+import { PageHeader } from "@rpos/ui";
 import type { PublicUser } from "@rpos/types";
 
 export default async function AdminDashboardPage() {
@@ -31,15 +32,11 @@ export default async function AdminDashboardPage() {
   const initialPublishers = publishersData || [];
 
   return (
-    <div className="space-y-8 animate-in">
-      <div className="flex flex-col gap-1 border-b border-border/20 pb-5">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Superadmin Control Panel
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Workspace node manager: configure service permissions and journal tracks.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Superadmin Control Panel"
+        description="Workspace node manager: configure service permissions and journal tracks."
+      />
 
       <AdminDashboardClient
         initialUsers={initialUsers}

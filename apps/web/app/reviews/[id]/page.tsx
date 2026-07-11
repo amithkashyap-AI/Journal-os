@@ -4,16 +4,9 @@ import type { PublicUser } from "@rpos/types";
 import { RecommendationBadge } from "../../../components/RecommendationBadge";
 import { StatusBadge } from "../../../components/StatusBadge";
 import { ReviewForm } from "../../../components/forms/review-form";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, PageHeader } from "@rpos/ui";
 import { apiFetch, AUTH_API, getToken, REVIEW_API, SUBMISSION_API } from "../../../lib/api";
 import type { ReviewDto, SubmissionDto } from "../../../lib/dto";
-import { PageHeader } from "@rpos/ui";
 
 export default async function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const token = await getToken();
@@ -39,7 +32,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
   const isFiled = Boolean(review.submittedAt);
 
   return (
-    <div className="space-y-6 animate-in">
+    <div className="space-y-6">
       {/* Header */}
       <PageHeader
         title={submission ? `Review: ${submission.title}` : `Review Assignment`}
@@ -51,7 +44,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
         {/* Left Side: Submission Details & Abstract */}
         <div className="lg:col-span-2 space-y-6">
           {submission && (
-            <Card className="border-border/40 shadow-sm">
+            <Card className="border-border/40">
               <CardHeader className="pb-4">
                 <CardTitle className="text-base font-semibold">Manuscript Abstract</CardTitle>
                 {review.dueAt && (
@@ -84,7 +77,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
 
         {/* Right Side: Recommendation & Comments Form */}
         <div className="space-y-6">
-          <Card className="border-border/40 shadow-sm bg-card/60">
+          <Card className="border-border/40 bg-card/60">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between gap-4">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">

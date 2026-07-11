@@ -19,7 +19,7 @@ export default async function SettingsPage() {
   const apiKeys = await Promise.all(publishers.map((p) => fetchApiKey(p.id)));
 
   return (
-    <div className="space-y-6 animate-in">
+    <div className="space-y-6">
       <PageHeader title="Settings" description="Manage your appearance and API access." />
 
       <Card>

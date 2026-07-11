@@ -49,7 +49,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" className="scroll-smooth dark theme-slate">
-      <body className="bg-mesh min-h-screen text-foreground antialiased transition-colors duration-500">
+      <body className="bg-background min-h-screen text-foreground antialiased">
         <ThemeProvider>
           <QueryProvider>
             {token && user ? (

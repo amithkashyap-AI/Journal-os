@@ -6,18 +6,10 @@ import { RecommendationBadge } from "../../../components/RecommendationBadge";
 import { StatusBadge } from "../../../components/StatusBadge";
 import { AssignReviewerForm } from "../../../components/forms/assign-reviewer-form";
 import { ManuscriptUpload } from "../../../components/forms/manuscript-upload";
-import { Button } from "../../../components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../../components/ui/card";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageHeader, Timeline } from "@rpos/ui";
 import { apiFetch, AUTH_API, getToken, REVIEW_API, SUBMISSION_API } from "../../../lib/api";
 import type { ReviewDto, SubmissionDto } from "../../../lib/dto";
 import { performSubmissionAction } from "../../../lib/submission-actions";
-import { PageHeader, Timeline } from "@rpos/ui";
 
 const ACTION_LABELS: Record<SubmissionAction, string> = {
   submit: "Submit for review",
@@ -107,7 +99,7 @@ export default async function SubmissionPage({
   }
 
   return (
-    <div className="space-y-8 animate-in">
+    <div className="space-y-8">
       {/* Header */}
       <PageHeader
         title={submission.title}
@@ -132,7 +124,7 @@ export default async function SubmissionPage({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left Side: Overview & Manuscript Details */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="border-border/40 shadow-sm">
+          <Card className="border-border/40">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-semibold">Abstract</CardTitle>
             </CardHeader>
@@ -162,7 +154,7 @@ export default async function SubmissionPage({
           </Card>
 
           {/* Manuscript Upload/Download Section */}
-          <Card className="border-border/40 shadow-sm">
+          <Card className="border-border/40">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-semibold">Manuscript Source</CardTitle>
             </CardHeader>
@@ -202,7 +194,7 @@ export default async function SubmissionPage({
 
           {/* Workflow Action Buttons */}
           {allowedActions.length > 0 && (
-            <Card className="border-border/40 shadow-sm bg-gradient-to-r from-primary/5 to-transparent">
+            <Card className="border-border/40 bg-secondary/20">
               <CardContent className="pt-6">
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-foreground">Available Actions</p>
@@ -217,7 +209,7 @@ export default async function SubmissionPage({
                           className={
                             DESTRUCTIVE_ACTIONS.includes(action)
                               ? "hover:bg-destructive/10 hover:text-destructive border-destructive/30"
-                              : "shadow-sm shadow-primary/10 hover:shadow-md"
+                              : undefined
                           }
                         >
                           {ACTION_LABELS[action]}
@@ -232,7 +224,7 @@ export default async function SubmissionPage({
 
           {/* Peer Review Panel (Staff Only) */}
           {isStaff && (
-            <Card className="border-border/40 shadow-sm">
+            <Card className="border-border/40">
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg font-semibold">Peer Review Assignments</CardTitle>
                 <CardDescription>
@@ -289,7 +281,7 @@ export default async function SubmissionPage({
 
         {/* Right Side: Timeline & History */}
         <div className="space-y-6">
-          <Card className="border-border/40 shadow-sm bg-card/60">
+          <Card className="border-border/40 bg-card/60">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
                 <History className="size-4 text-muted-foreground" />

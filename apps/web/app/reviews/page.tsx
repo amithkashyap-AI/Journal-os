@@ -3,10 +3,9 @@ import { redirect } from "next/navigation";
 import { ClipboardList, Calendar } from "lucide-react";
 import type { PublicUser } from "@rpos/types";
 import { RecommendationBadge } from "../../components/RecommendationBadge";
-import { Card, CardContent } from "../../components/ui/card";
+import { Card, CardContent, PageHeader, EmptyState } from "@rpos/ui";
 import { apiFetch, AUTH_API, getToken, REVIEW_API, SUBMISSION_API } from "../../lib/api";
 import type { ReviewDto, SubmissionDto } from "../../lib/dto";
-import { PageHeader, EmptyState } from "@rpos/ui";
 
 export default async function ReviewsPage() {
   const token = await getToken();
@@ -32,7 +31,7 @@ export default async function ReviewsPage() {
   const submissionsById = new Map(submissionEntries);
 
   return (
-    <div className="space-y-6 animate-in">
+    <div className="space-y-6">
       {/* Header */}
       <PageHeader
         title={isStaff ? "All Reviews" : "Review Workspace"}
@@ -46,7 +45,7 @@ export default async function ReviewsPage() {
           description="When editors assign manuscripts to you for peer review, they will appear here."
         />
       ) : (
-        <Card className="border-border/40 shadow-sm bg-card/60">
+        <Card className="border-border/40 bg-card/60">
           <CardContent className="pt-6">
             <ul className="divide-y divide-border/40">
               {reviews.map((review) => {

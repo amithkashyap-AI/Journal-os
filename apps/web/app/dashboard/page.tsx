@@ -4,10 +4,9 @@ import { FileText, Plus, Inbox, Layers, FileCheck, ClipboardList, Settings } fro
 import type { PublicUser } from "@rpos/types";
 import { StatusBadge } from "../../components/StatusBadge";
 import { SubmissionsTable, type SubmissionRow } from "../../components/tables/submissions-table";
-import { Card, CardContent } from "../../components/ui/card";
+import { Card, CardContent, PageHeader, StatsCard, EmptyState } from "@rpos/ui";
 import { apiFetch, AUTH_API, getToken, REVIEW_API, SUBMISSION_API } from "../../lib/api";
 import type { ReviewDto, SubmissionDto } from "../../lib/dto";
-import { PageHeader, StatsCard, EmptyState } from "@rpos/ui";
 
 export default async function DashboardPage() {
   const token = await getToken();
@@ -58,7 +57,7 @@ export default async function DashboardPage() {
           user.roles.includes("ADMIN") ? (
             <Link
               href="/dashboard/admin"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-xs hover:shadow-md transition-all"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               <Settings className="size-4" />
               Superadmin Controls
@@ -67,7 +66,7 @@ export default async function DashboardPage() {
             !isStaff && (
               <Link
                 href="/submissions/new"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-xs hover:shadow-md transition-all"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 <Plus className="size-4" />
                 New Submission
@@ -119,14 +118,14 @@ export default async function DashboardPage() {
             action={
               <Link
                 href="/submissions/new"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:shadow-md transition-all"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 Create submission
               </Link>
             }
           />
         ) : (
-          <Card className="border-border/40 shadow-sm bg-card/60">
+          <Card className="border-border/40 bg-card/60">
             <CardContent className="pt-6">
               <ul className="divide-y divide-border/40">
                 {submissions.map((submission) => (

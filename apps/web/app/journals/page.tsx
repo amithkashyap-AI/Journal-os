@@ -2,16 +2,9 @@ import { redirect } from "next/navigation";
 import { BookOpen } from "lucide-react";
 import type { PublicUser } from "@rpos/types";
 import { JournalForm, PublisherForm } from "../../components/forms/journal-forms";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, PageHeader, EmptyState } from "@rpos/ui";
 import { apiFetch, AUTH_API, getToken } from "../../lib/api";
 import { fetchJournals, fetchPublishers } from "../../lib/catalog";
-import { PageHeader, EmptyState } from "@rpos/ui";
 
 export default async function JournalsPage() {
   const token = await getToken();
@@ -25,7 +18,7 @@ export default async function JournalsPage() {
   const [journals, publishers] = await Promise.all([fetchJournals(), fetchPublishers()]);
 
   return (
-    <div className="space-y-8 animate-in">
+    <div className="space-y-8">
       {/* Header */}
       <PageHeader
         title="Journal Catalog"
@@ -41,7 +34,7 @@ export default async function JournalsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {journals.map((journal) => (
-            <Card key={journal.id} className="border-border/40 shadow-sm hover:shadow-md transition-shadow bg-card/60">
+            <Card key={journal.id} className="border-border/40 bg-card/60">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-4">
                   <CardTitle className="text-base font-semibold leading-tight text-foreground">
@@ -81,7 +74,7 @@ export default async function JournalsPage() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            <Card className="border-border/40 shadow-sm bg-card/60">
+            <Card className="border-border/40 bg-card/60">
               <CardHeader>
                 <CardTitle className="text-sm font-semibold">New journal</CardTitle>
                 <CardDescription className="text-xs">
@@ -93,7 +86,7 @@ export default async function JournalsPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/40 shadow-sm bg-card/60">
+            <Card className="border-border/40 bg-card/60">
               <CardHeader>
                 <CardTitle className="text-sm font-semibold">New publisher</CardTitle>
                 <CardDescription className="text-xs">
