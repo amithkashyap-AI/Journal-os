@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { SubmissionStatus } from "@rpos/types";
+import type { SubmissionStatus, UserRole } from "@rpos/types";
+import type { SubmissionAction } from "@rpos/workflow-engine";
 
 export interface StoredSubmission {
   id: string;
@@ -67,6 +68,8 @@ export interface SubmissionStore {
   /** Resolves an x-api-key header value to the publisher it authenticates, if enabled. */
   resolveApiKey(key: string): Promise<ApiKeyLookup | null>;
   touchApiKeyLastUsed(apiKeyId: string): Promise<void>;
+  /** The tenant's configured role overrides for this journal's publisher — actions without a row use the workflow-engine default. */
+  getWorkflowActionRules(journalId: string): Promise<Partial<Record<SubmissionAction, UserRole[]>>>;
 }
 
 export class InMemorySubmissionStore implements SubmissionStore {
@@ -76,6 +79,7 @@ export class InMemorySubmissionStore implements SubmissionStore {
   private readonly journalPublishers = new Map<string, string>();
   private readonly apiKeys = new Map<string, { apiKeyId: string; publisherId: string; enabled: boolean }>();
   private readonly editorMembers = new Map<string, Set<string>>(); // publisherId -> userIds
+  private readonly workflowRules = new Map<string, Partial<Record<SubmissionAction, UserRole[]>>>(); // publisherId -> rules
 
   addReviewAssignment(submissionId: string, reviewerId: string): void {
     this.reviewAssignments.add(`${submissionId}:${reviewerId}`);
@@ -105,6 +109,21 @@ export class InMemorySubmissionStore implements SubmissionStore {
     const set = this.editorMembers.get(publisherId) ?? new Set<string>();
     set.add(userId);
     this.editorMembers.set(publisherId, set);
+  }
+
+  /** Test helper mirroring a WorkflowActionRule row. */
+  setWorkflowActionRule(publisherId: string, action: SubmissionAction, roles: UserRole[]): void {
+    const rules = this.workflowRules.get(publisherId) ?? {};
+    rules[action] = roles;
+    this.workflowRules.set(publisherId, rules);
+  }
+
+  async getWorkflowActionRules(
+    journalId: string,
+  ): Promise<Partial<Record<SubmissionAction, UserRole[]>>> {
+    const publisherId = this.journalPublishers.get(journalId);
+    if (!publisherId) return {};
+    return this.workflowRules.get(publisherId) ?? {};
   }
 
   async isJournalOwner(journalId: string, userId: string): Promise<boolean> {

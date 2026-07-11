@@ -21,6 +21,7 @@
     "@rpos/types": "workspace:*",
     "@rpos/utils": "workspace:*",
     "@rpos/validation": "workspace:*",
+    "@rpos/workflow-engine": "workspace:*",
     "fastify": "^5.2.1",
     "zod": "^3.24.1"
   },

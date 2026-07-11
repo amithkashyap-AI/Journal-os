@@ -10,6 +10,7 @@ import type {
   StoredJournal,
   StoredMember,
   StoredPublisher,
+  StoredWorkflowRule,
   UpdateJournalData,
 } from "./store.js";
 
@@ -136,5 +137,25 @@ export class PrismaJournalStore implements JournalStore {
 
   async removeMember(memberId: string): Promise<void> {
     await this.db.publisherMember.delete({ where: { id: memberId } });
+  }
+
+  async listWorkflowRules(publisherId: string): Promise<StoredWorkflowRule[]> {
+    return this.db.workflowActionRule.findMany({ where: { publisherId } });
+  }
+
+  async upsertWorkflowRule(
+    publisherId: string,
+    action: string,
+    roles: UserRole[],
+  ): Promise<StoredWorkflowRule> {
+    return this.db.workflowActionRule.upsert({
+      where: { publisherId_action: { publisherId, action } },
+      update: { roles },
+      create: { publisherId, action, roles },
+    });
+  }
+
+  async deleteWorkflowRule(publisherId: string, action: string): Promise<void> {
+    await this.db.workflowActionRule.deleteMany({ where: { publisherId, action } });
   }
 }

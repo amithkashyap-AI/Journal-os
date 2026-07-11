@@ -93,6 +93,22 @@ describe("journal service", () => {
     expect(publisher.statusCode).toBe(403);
   });
 
+  it("lets a user with only the journals.manage permission (no ADMIN/PUBLISHER role) create a publisher", async () => {
+    const token = app.jwt.sign({
+      sub: "perm-user",
+      email: "perm-user@example.com",
+      roles: ["AUTHOR"],
+      permissions: ["journals.manage"],
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/publishers",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { name: "Custom-Role Press" },
+    });
+    expect(res.statusCode).toBe(201);
+  });
+
   it("lists journals with publisher names for any authenticated user", async () => {
     const publisher = (await createPublisher()).json().publisher;
     await createJournal(publisher.id);
@@ -548,6 +564,112 @@ describe("journal service", () => {
         headers: authHeader("pub-2", ["PUBLISHER"]),
       });
       expect(crossTenantRemove.statusCode).toBe(404);
+    });
+  });
+
+  describe("workflow action rules (per-tenant role gating)", () => {
+    async function createOwnedPublisher(ownerId: string, name = "Owner Press") {
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/publishers",
+        headers: authHeader(ownerId, ["PUBLISHER"]),
+        payload: { name },
+      });
+      return res.json().publisher;
+    }
+
+    it("lists all 7 actions with system defaults when unconfigured", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/v1/publishers/${publisher.id}/workflow-rules`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(res.statusCode).toBe(200);
+      const { rules } = res.json();
+      expect(rules).toHaveLength(7);
+      expect(rules.every((r: { isDefault: boolean }) => r.isDefault)).toBe(true);
+      const accept = rules.find((r: { action: string }) => r.action === "accept");
+      expect(accept.roles).toEqual(["EDITOR", "ADMIN"]);
+    });
+
+    it("lets the owner set and revert a role override", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+
+      const update = await app.inject({
+        method: "PUT",
+        url: `/v1/publishers/${publisher.id}/workflow-rules/accept`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { roles: ["PUBLISHER"] },
+      });
+      expect(update.statusCode).toBe(200);
+      expect(update.json().rule.roles).toEqual(["PUBLISHER"]);
+
+      const afterUpdate = await app.inject({
+        method: "GET",
+        url: `/v1/publishers/${publisher.id}/workflow-rules`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      const accept = afterUpdate.json().rules.find((r: { action: string }) => r.action === "accept");
+      expect(accept).toEqual({ action: "accept", roles: ["PUBLISHER"], isDefault: false });
+
+      const reset = await app.inject({
+        method: "DELETE",
+        url: `/v1/publishers/${publisher.id}/workflow-rules/accept`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      expect(reset.statusCode).toBe(204);
+
+      const afterReset = await app.inject({
+        method: "GET",
+        url: `/v1/publishers/${publisher.id}/workflow-rules`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+      });
+      const acceptAfterReset = afterReset
+        .json()
+        .rules.find((r: { action: string }) => r.action === "accept");
+      expect(acceptAfterReset).toEqual({ action: "accept", roles: ["EDITOR", "ADMIN"], isDefault: true });
+    });
+
+    it("rejects an unknown action and a role outside the safe override set", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+
+      const badAction = await app.inject({
+        method: "PUT",
+        url: `/v1/publishers/${publisher.id}/workflow-rules/not_a_real_action`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { roles: ["PUBLISHER"] },
+      });
+      expect(badAction.statusCode).toBe(400);
+
+      const badRole = await app.inject({
+        method: "PUT",
+        url: `/v1/publishers/${publisher.id}/workflow-rules/accept`,
+        headers: authHeader("pub-1", ["PUBLISHER"]),
+        payload: { roles: ["SUPERADMIN"] },
+      });
+      expect(badRole.statusCode).toBe(400);
+    });
+
+    it("forbids anyone but the owner or an admin from managing workflow rules", async () => {
+      const publisher = await createOwnedPublisher("pub-1");
+
+      const stranger = await app.inject({
+        method: "PUT",
+        url: `/v1/publishers/${publisher.id}/workflow-rules/accept`,
+        headers: authHeader("pub-2", ["PUBLISHER"]),
+        payload: { roles: ["PUBLISHER"] },
+      });
+      expect(stranger.statusCode).toBe(403);
+
+      const admin = await app.inject({
+        method: "PUT",
+        url: `/v1/publishers/${publisher.id}/workflow-rules/accept`,
+        headers: authHeader("admin-1", ["ADMIN"]),
+        payload: { roles: ["PUBLISHER"] },
+      });
+      expect(admin.statusCode).toBe(200);
     });
   });
 });

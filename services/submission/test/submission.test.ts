@@ -273,7 +273,7 @@ describe("submission service", () => {
     // on the platform regardless of which publisher they belong to.
     expect(submitted).toHaveLength(2);
     expect(submitted).toContainEqual(
-      expect.objectContaining({ role: ["ADMIN"], data: { title: DRAFT_PAYLOAD.title } }),
+      expect.objectContaining({ role: ["ADMIN", "SUPERADMIN"], data: { title: DRAFT_PAYLOAD.title } }),
     );
     expect(submitted).toContainEqual(
       expect.objectContaining({ userId: "editor-1", data: { title: DRAFT_PAYLOAD.title } }),
@@ -567,6 +567,142 @@ describe("submission service", () => {
         headers: { "x-api-key": "key-abc" },
       });
       expect(res.statusCode).toBe(401);
+    });
+  });
+
+  describe("custom-role permission (submissions.editorial)", () => {
+    function permissionAuthHeader(sub: string, permissions: string[]) {
+      const token = app.jwt.sign({ sub, email: `${sub}@example.com`, roles: ["AUTHOR"], permissions });
+      return { authorization: `Bearer ${token}` };
+    }
+
+    it("lets a user with only the submissions.editorial permission (no EDITOR role) perform editorial actions on someone else's submission", async () => {
+      const draft = await createDraft("author-1");
+      await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+
+      const permHeader = permissionAuthHeader("perm-user", ["submissions.editorial"]);
+
+      // Visibility: can read a submission they didn't author.
+      const read = await app.inject({
+        method: "GET",
+        url: `/v1/submissions/${draft.id}`,
+        headers: permHeader,
+      });
+      expect(read.statusCode).toBe(200);
+
+      // The actual editorial action succeeds — not just visibility.
+      const startReview = await app.inject({
+        method: "POST",
+        url: `/v1/submissions/${draft.id}/actions`,
+        headers: permHeader,
+        payload: { action: "start_review" },
+      });
+      expect(startReview.statusCode).toBe(200);
+      expect(startReview.json().submission.status).toBe("UNDER_REVIEW");
+
+      const accept = await app.inject({
+        method: "POST",
+        url: `/v1/submissions/${draft.id}/actions`,
+        headers: permHeader,
+        payload: { action: "accept" },
+      });
+      expect(accept.statusCode).toBe(200);
+      expect(accept.json().submission.status).toBe("ACCEPTED");
+    });
+
+    it("still 404s for a plain AUTHOR-only user with no permission and no relationship to the submission", async () => {
+      const draft = await createDraft("author-1");
+      await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/v1/submissions/${draft.id}/actions`,
+        headers: authHeader("stranger", ["AUTHOR"]),
+        payload: { action: "start_review" },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe("per-tenant workflow role overrides", () => {
+    it("a tenant restricting accept to PUBLISHER blocks an EDITOR on that journal but not on an unconfigured one", async () => {
+      // journal-1/pub-tenant-1 restricts accept to PUBLISHER only.
+      store.setWorkflowActionRule("pub-tenant-1", "accept", ["PUBLISHER"]);
+      store.setJournalOwner("journal-1", "publisher-1");
+
+      const draftA = await createDraft("author-1"); // journal-1 / pub-tenant-1
+      await act(draftA.id, "submit", "author-1", ["AUTHOR"]);
+      await act(draftA.id, "start_review", "editor-1", ["EDITOR"]);
+
+      const editorBlocked = await act(draftA.id, "accept", "editor-1", ["EDITOR"]);
+      expect(editorBlocked.statusCode).toBe(403);
+      expect(editorBlocked.json().error).toBe("FORBIDDEN");
+
+      const publisherAllowed = await act(draftA.id, "accept", "publisher-1", ["PUBLISHER"]);
+      expect(publisherAllowed.statusCode).toBe(200);
+      expect(publisherAllowed.json().submission.status).toBe("ACCEPTED");
+
+      // An unconfigured second journal under a different publisher still uses the default.
+      store.setJournalPublisher("journal-2", "pub-tenant-2");
+      store.addEditorMember("pub-tenant-2", "editor-2");
+      const draftB = await app.inject({
+        method: "POST",
+        url: "/v1/submissions",
+        headers: authHeader("author-2", ["AUTHOR"]),
+        payload: { ...DRAFT_PAYLOAD, journalId: "journal-2" },
+      });
+      const bId = draftB.json().submission.id;
+      await act(bId, "submit", "author-2", ["AUTHOR"]);
+      await act(bId, "start_review", "editor-2", ["EDITOR"]);
+      const editorAllowedElsewhere = await act(bId, "accept", "editor-2", ["EDITOR"]);
+      expect(editorAllowedElsewhere.statusCode).toBe(200);
+    });
+
+    it("ADMIN always bypasses a tenant's role override", async () => {
+      store.setWorkflowActionRule("pub-tenant-1", "accept", ["PUBLISHER"]);
+
+      const draft = await createDraft("author-1");
+      await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+      await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+
+      const admin = await act(draft.id, "accept", "admin-1", ["ADMIN"]);
+      expect(admin.statusCode).toBe(200);
+    });
+
+    it("reflects the override in GET /:id's allowedActions", async () => {
+      store.setWorkflowActionRule("pub-tenant-1", "accept", ["PUBLISHER"]);
+
+      const draft = await createDraft("author-1");
+      await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+      await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/v1/submissions/${draft.id}`,
+        headers: authHeader("editor-1", ["EDITOR"]),
+      });
+      expect(res.json().allowedActions).not.toContain("accept");
+    });
+
+    it("the publisher API-key /publish route also respects a tenant override on publish", async () => {
+      store.setJournalPublisher(DRAFT_PAYLOAD.journalId, "pub-1-org");
+      store.addEditorMember("pub-1-org", "editor-1");
+      store.addApiKey("key-abc", "pub-1-org");
+      // Restrict publish to EDITOR only — the API key authenticates as
+      // PUBLISHER, so this should now block it.
+      store.setWorkflowActionRule("pub-1-org", "publish", ["EDITOR"]);
+
+      const draft = await createDraft("author-1");
+      await act(draft.id, "submit", "author-1", ["AUTHOR"]);
+      await act(draft.id, "start_review", "editor-1", ["EDITOR"]);
+      await act(draft.id, "accept", "editor-1", ["EDITOR"]);
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/v1/submissions/${draft.id}/publish`,
+        headers: { "x-api-key": "key-abc" },
+      });
+      expect(res.statusCode).toBe(403);
     });
   });
 

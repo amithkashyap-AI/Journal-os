@@ -76,6 +76,16 @@ export interface MemberCandidate {
   roles: UserRole[];
 }
 
+/** A tenant's override of which roles may perform a given workflow action. */
+export interface StoredWorkflowRule {
+  id: string;
+  publisherId: string;
+  action: string;
+  roles: UserRole[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface JournalStore {
   listJournals(): Promise<JournalWithPublisher[]>;
   findJournalById(id: string): Promise<JournalWithPublisher | null>;
@@ -106,6 +116,11 @@ export interface JournalStore {
   findMemberById(publisherId: string, memberId: string): Promise<StoredMember | null>;
   addMember(publisherId: string, userId: string, role: UserRole): Promise<StoredMember>;
   removeMember(memberId: string): Promise<void>;
+
+  /** Only the tenant's overridden actions — actions without a row use the system default. */
+  listWorkflowRules(publisherId: string): Promise<StoredWorkflowRule[]>;
+  upsertWorkflowRule(publisherId: string, action: string, roles: UserRole[]): Promise<StoredWorkflowRule>;
+  deleteWorkflowRule(publisherId: string, action: string): Promise<void>;
 }
 
 export class InMemoryJournalStore implements JournalStore {
@@ -114,6 +129,7 @@ export class InMemoryJournalStore implements JournalStore {
   private readonly apiKeys = new Map<string, StoredApiKey>(); // keyed by publisherId
   private readonly users = new Map<string, MemberCandidate>();
   private readonly members = new Map<string, StoredMember>();
+  private readonly workflowRules = new Map<string, StoredWorkflowRule>(); // keyed by `${publisherId}:${action}`
 
   /** Test helper mirroring a User row, since this store has no User table of its own. */
   setUser(candidate: MemberCandidate): void {
@@ -278,5 +294,28 @@ export class InMemoryJournalStore implements JournalStore {
 
   async removeMember(memberId: string): Promise<void> {
     this.members.delete(memberId);
+  }
+
+  async listWorkflowRules(publisherId: string): Promise<StoredWorkflowRule[]> {
+    return [...this.workflowRules.values()].filter((rule) => rule.publisherId === publisherId);
+  }
+
+  async upsertWorkflowRule(
+    publisherId: string,
+    action: string,
+    roles: UserRole[],
+  ): Promise<StoredWorkflowRule> {
+    const key = `${publisherId}:${action}`;
+    const existing = this.workflowRules.get(key);
+    const now = new Date();
+    const rule: StoredWorkflowRule = existing
+      ? { ...existing, roles, updatedAt: now }
+      : { id: randomUUID(), publisherId, action, roles, createdAt: now, updatedAt: now };
+    this.workflowRules.set(key, rule);
+    return rule;
+  }
+
+  async deleteWorkflowRule(publisherId: string, action: string): Promise<void> {
+    this.workflowRules.delete(`${publisherId}:${action}`);
   }
 }

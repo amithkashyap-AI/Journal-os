@@ -1,4 +1,6 @@
 import { getPrisma } from "@rpos/database";
+import type { UserRole } from "@rpos/types";
+import type { SubmissionAction } from "@rpos/workflow-engine";
 import type {
   ApiKeyLookup,
   CreateSubmissionData,
@@ -114,5 +116,21 @@ export class PrismaSubmissionStore implements SubmissionStore {
 
   async touchApiKeyLastUsed(apiKeyId: string): Promise<void> {
     await this.db.apiKey.update({ where: { id: apiKeyId }, data: { lastUsedAt: new Date() } });
+  }
+
+  async getWorkflowActionRules(
+    journalId: string,
+  ): Promise<Partial<Record<SubmissionAction, UserRole[]>>> {
+    const journal = await this.db.journal.findUnique({
+      where: { id: journalId },
+      select: { publisherId: true },
+    });
+    if (!journal) return {};
+    const rules = await this.db.workflowActionRule.findMany({
+      where: { publisherId: journal.publisherId },
+    });
+    return Object.fromEntries(rules.map((rule) => [rule.action, rule.roles])) as Partial<
+      Record<SubmissionAction, UserRole[]>
+    >;
   }
 }

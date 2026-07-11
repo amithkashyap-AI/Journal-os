@@ -60,21 +60,35 @@ export type TransitionResult =
   | { ok: true; status: SubmissionStatus }
   | { ok: false; reason: "INVALID_TRANSITION" | "FORBIDDEN" };
 
+/** The system-default roles allowed to perform a given action, absent any tenant override. */
+export function getDefaultRoles(action: SubmissionAction): readonly UserRole[] {
+  return RULES[action].roles;
+}
+
 /**
  * Validate a workflow action against the transition table.
  * Ownership checks (e.g. an author may only act on their own submission)
  * are the caller's responsibility.
+ *
+ * `roleOverride`, when given, replaces the default role list for this
+ * action (a tenant-configured restriction/expansion) — but ADMIN/SUPERADMIN
+ * are always folded back in regardless, so a tenant can never configure
+ * away the platform-wide bypass.
  */
 export function applyTransition(
   current: SubmissionStatus,
   action: SubmissionAction,
   actorRoles: readonly UserRole[],
+  roleOverride?: readonly UserRole[],
 ): TransitionResult {
   const rule = RULES[action];
   if (!rule.from.includes(current)) {
     return { ok: false, reason: "INVALID_TRANSITION" };
   }
-  if (!actorRoles.some((role) => rule.roles.includes(role))) {
+  const allowedRoles = roleOverride
+    ? [...new Set([...roleOverride, "ADMIN" as const, "SUPERADMIN" as const])]
+    : rule.roles;
+  if (!actorRoles.some((role) => allowedRoles.includes(role))) {
     return { ok: false, reason: "FORBIDDEN" };
   }
   return { ok: true, status: rule.to };
@@ -84,6 +98,9 @@ export function applyTransition(
 export function allowedActions(
   current: SubmissionStatus,
   actorRoles: readonly UserRole[],
+  roleOverrides?: Partial<Record<SubmissionAction, readonly UserRole[]>>,
 ): SubmissionAction[] {
-  return SUBMISSION_ACTIONS.filter((action) => applyTransition(current, action, actorRoles).ok);
+  return SUBMISSION_ACTIONS.filter((action) =>
+    applyTransition(current, action, actorRoles, roleOverrides?.[action]).ok,
+  );
 }

@@ -7,9 +7,11 @@ import { z } from "zod";
 import { Building2, BookPlus, Send, Inbox, BadgeCheck } from "lucide-react";
 import { EmptyState, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, NativeSelect, Textarea } from "@rpos/ui";
 import type { JournalDto, MemberDto, PublisherDto } from "../lib/catalog";
+import type { WorkflowRuleDto } from "../lib/workflow-actions";
 import { createJournal, createPublisher } from "../lib/journal-actions";
 import { performSubmissionAction } from "../lib/submission-actions";
 import { TeamManager } from "./TeamManager";
+import { WorkflowRulesManager } from "./WorkflowRulesManager";
 
 interface ReadyToPublish {
   id: string;
@@ -185,12 +187,14 @@ export function PublisherDashboardClient({
   initialReadyToPublish,
   initialRecentlyPublished,
   initialMembersByPublisher,
+  initialWorkflowRulesByPublisher,
 }: {
   initialPublishers: PublisherDto[];
   initialJournals: JournalDto[];
   initialReadyToPublish: ReadyToPublish[];
   initialRecentlyPublished: RecentlyPublished[];
   initialMembersByPublisher: Record<string, MemberDto[]>;
+  initialWorkflowRulesByPublisher: Record<string, WorkflowRuleDto[]>;
 }) {
   const [publishers, setPublishers] = useState(initialPublishers);
   const [journals, setJournals] = useState(initialJournals);
@@ -297,6 +301,25 @@ export function PublisherDashboardClient({
                 publisherId={publisher.id}
                 publisherName={publisher.name}
                 initialMembers={initialMembersByPublisher[publisher.id] ?? []}
+              />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Workflow</CardTitle>
+            <CardDescription>
+              Customize which roles may perform each editorial action, per organization.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {publishers.map((publisher) => (
+              <WorkflowRulesManager
+                key={publisher.id}
+                publisherId={publisher.id}
+                publisherName={publisher.name}
+                initialRules={initialWorkflowRulesByPublisher[publisher.id] ?? []}
               />
             ))}
           </CardContent>

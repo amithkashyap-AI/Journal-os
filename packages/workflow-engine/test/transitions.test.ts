@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allowedActions, applyTransition } from "../src/index.js";
+import { allowedActions, applyTransition, getDefaultRoles } from "../src/index.js";
 
 describe("submission workflow engine", () => {
   it("lets an author submit a draft", () => {
@@ -55,5 +55,38 @@ describe("submission workflow engine", () => {
       "withdraw",
     ]);
     expect(allowedActions("PUBLISHED", ["ADMIN"])).toEqual([]);
+  });
+
+  it("lets a tenant role override restrict a previously-allowed role", () => {
+    // Default allows EDITOR to accept; a tenant override to PUBLISHER-only excludes it.
+    expect(applyTransition("UNDER_REVIEW", "accept", ["EDITOR"], ["PUBLISHER"])).toEqual({
+      ok: false,
+      reason: "FORBIDDEN",
+    });
+    expect(applyTransition("UNDER_REVIEW", "accept", ["PUBLISHER"], ["PUBLISHER"])).toEqual({
+      ok: true,
+      status: "ACCEPTED",
+    });
+  });
+
+  it("always lets ADMIN/SUPERADMIN through a role override that excludes them", () => {
+    expect(applyTransition("UNDER_REVIEW", "accept", ["ADMIN"], ["PUBLISHER"])).toEqual({
+      ok: true,
+      status: "ACCEPTED",
+    });
+    expect(applyTransition("UNDER_REVIEW", "accept", ["SUPERADMIN"], ["PUBLISHER"])).toEqual({
+      ok: true,
+      status: "ACCEPTED",
+    });
+  });
+
+  it("reflects a role-override map in allowedActions", () => {
+    expect(
+      allowedActions("UNDER_REVIEW", ["EDITOR"], { accept: ["PUBLISHER"] }),
+    ).toEqual(["request_revisions", "reject", "withdraw"]);
+  });
+
+  it("getDefaultRoles returns the system-default role list for an action", () => {
+    expect(getDefaultRoles("accept")).toEqual(["EDITOR", "ADMIN"]);
   });
 });

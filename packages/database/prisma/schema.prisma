@@ -132,6 +132,7 @@ model Publisher {
   books       Book[]
   apiKey      ApiKey?
   members     PublisherMember[]
+  workflowActionRules WorkflowActionRule[]
 
   @@index([ownerId])
   @@map("publishers")
@@ -186,6 +187,26 @@ model Journal {
   submissions Submission[]
 
   @@map("journals")
+}
+
+/// Per-tenant override of which roles may perform a given workflow action
+/// within this publisher's journals — additive/replacing on top of
+/// @rpos/workflow-engine's fixed default role list for that action. The
+/// action set and state graph stay fixed platform-wide; only WHO may act
+/// is tenant-configurable. ADMIN/SUPERADMIN always bypass regardless of
+/// what's configured here (enforced in applyTransition, not stored).
+model WorkflowActionRule {
+  id          String     @id @default(cuid())
+  publisherId String
+  action      String
+  roles       UserRole[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  publisher Publisher @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+
+  @@unique([publisherId, action])
+  @@map("workflow_action_rules")
 }
 
 model Conference {

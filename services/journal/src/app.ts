@@ -6,8 +6,11 @@ import {
   createJournalSchema,
   createPublisherSchema,
   updateJournalSchema,
+  updateWorkflowRuleSchema,
+  workflowActionSchema,
 } from "@rpos/validation";
 import { slugify } from "@rpos/utils";
+import { getDefaultRoles, SUBMISSION_ACTIONS } from "@rpos/workflow-engine";
 import type { JwtPayload, UserRole } from "@rpos/types";
 import type { JournalStore, StoredPublisher } from "./store.js";
 
@@ -36,11 +39,16 @@ function hasAnyRole(user: JwtPayload, ...roles: UserRole[]): boolean {
 
 /** Publishers and admins manage catalog data. */
 function isManager(user: JwtPayload): boolean {
-  return hasAnyRole(user, "ADMIN", "PUBLISHER");
+  return hasAnyRole(user, "ADMIN", "SUPERADMIN", "PUBLISHER");
 }
 
 function isAdmin(user: JwtPayload): boolean {
-  return hasAnyRole(user, "ADMIN");
+  return hasAnyRole(user, "ADMIN", "SUPERADMIN");
+}
+
+/** Additive custom-role permission check — never replaces a role check, only widens it. */
+function hasPermission(user: JwtPayload, key: string): boolean {
+  return user.permissions?.includes(key) ?? false;
 }
 
 function canManageApiKey(user: JwtPayload, publisher: StoredPublisher): boolean {
@@ -105,7 +113,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   );
 
   app.post("/v1/journals", { onRequest: [app.authenticate] }, async (request, reply) => {
-    if (!isManager(request.user)) {
+    if (!isManager(request.user) && !hasPermission(request.user, "journals.manage")) {
       return reply.code(403).send({ error: "FORBIDDEN" });
     }
 
@@ -138,7 +146,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     "/v1/journals/:id",
     { onRequest: [app.authenticate] },
     async (request, reply) => {
-      if (!isManager(request.user)) {
+      if (!isManager(request.user) && !hasPermission(request.user, "journals.manage")) {
         return reply.code(403).send({ error: "FORBIDDEN" });
       }
 
@@ -175,7 +183,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post("/v1/publishers", { onRequest: [app.authenticate] }, async (request, reply) => {
-    if (!isManager(request.user)) {
+    if (!isManager(request.user) && !hasPermission(request.user, "journals.manage")) {
       return reply.code(403).send({ error: "FORBIDDEN" });
     }
 
@@ -367,6 +375,87 @@ export function buildApp(options: AppOptions): FastifyInstance {
       if (!member) return reply.code(404).send({ error: "NOT_FOUND" });
 
       await journals.removeMember(member.id);
+      return reply.code(204).send();
+    },
+  );
+
+  // ─── Workflow role overrides (per-tenant, phase 3 of the roadmap) ──
+  // The action set and state graph stay fixed platform-wide (owned by
+  // @rpos/workflow-engine); this only lets a publisher restrict/expand
+  // which roles may perform each action within their own journals.
+  // ADMIN/SUPERADMIN always bypass regardless — enforced in the engine.
+
+  app.get<{ Params: { id: string } }>(
+    "/v1/publishers/:id/workflow-rules",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const publisher = await journals.findPublisherById(request.params.id);
+      if (!publisher) return reply.code(404).send({ error: "NOT_FOUND" });
+      if (!canManagePublisher(request.user, publisher)) {
+        return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+      }
+
+      const overrides = await journals.listWorkflowRules(publisher.id);
+      const overrideByAction = new Map(overrides.map((rule) => [rule.action, rule]));
+      const rules = SUBMISSION_ACTIONS.map((action) => {
+        const override = overrideByAction.get(action);
+        return {
+          action,
+          roles: override?.roles ?? getDefaultRoles(action),
+          isDefault: !override,
+        };
+      });
+      return reply.send({ rules });
+    },
+  );
+
+  app.put<{ Params: { id: string; action: string } }>(
+    "/v1/publishers/:id/workflow-rules/:action",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const publisher = await journals.findPublisherById(request.params.id);
+      if (!publisher) return reply.code(404).send({ error: "NOT_FOUND" });
+      if (!canManagePublisher(request.user, publisher)) {
+        return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+      }
+
+      const parsedAction = workflowActionSchema.safeParse(request.params.action);
+      if (!parsedAction.success) {
+        return reply.code(400).send({ error: "INVALID_ACTION" });
+      }
+      const parsed = updateWorkflowRuleSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({
+          error: "VALIDATION_ERROR",
+          details: parsed.error.flatten().fieldErrors,
+        });
+      }
+
+      const rule = await journals.upsertWorkflowRule(
+        publisher.id,
+        parsedAction.data,
+        parsed.data.roles,
+      );
+      return reply.send({ rule });
+    },
+  );
+
+  app.delete<{ Params: { id: string; action: string } }>(
+    "/v1/publishers/:id/workflow-rules/:action",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const publisher = await journals.findPublisherById(request.params.id);
+      if (!publisher) return reply.code(404).send({ error: "NOT_FOUND" });
+      if (!canManagePublisher(request.user, publisher)) {
+        return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
+      }
+
+      const parsedAction = workflowActionSchema.safeParse(request.params.action);
+      if (!parsedAction.success) {
+        return reply.code(400).send({ error: "INVALID_ACTION" });
+      }
+
+      await journals.deleteWorkflowRule(publisher.id, parsedAction.data);
       return reply.code(204).send();
     },
   );

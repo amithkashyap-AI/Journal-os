@@ -46,7 +46,12 @@ function hasAnyRole(user: JwtPayload, ...roles: UserRole[]): boolean {
 }
 
 function isAdmin(user: JwtPayload): boolean {
-  return hasAnyRole(user, "ADMIN");
+  return hasAnyRole(user, "ADMIN", "SUPERADMIN");
+}
+
+/** Additive custom-role permission check — never replaces a role check, only widens it. */
+function hasPermission(user: JwtPayload, key: string): boolean {
+  return user.permissions?.includes(key) ?? false;
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -127,6 +132,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         submission !== null &&
         (submission.authorId === request.user.sub ||
           isAdmin(request.user) ||
+          hasPermission(request.user, "submissions.editorial") ||
           (hasAnyRole(request.user, "EDITOR") &&
             (await submissions.isPublisherEditorMember(submission.journalId, request.user.sub))) ||
           (await submissions.isAssignedReviewer(submission.id, request.user.sub)) ||
@@ -135,9 +141,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
       if (!submission || !canRead) {
         return reply.code(404).send({ error: "NOT_FOUND" });
       }
+      const rules = await submissions.getWorkflowActionRules(submission.journalId);
       return reply.send({
         submission,
-        allowedActions: allowedActions(submission.status, request.user.roles),
+        allowedActions: allowedActions(submission.status, request.user.roles, rules),
       });
     },
   );
@@ -186,10 +193,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
       }
 
       const submission = await submissions.findById(request.params.id);
+      const hasEditorialPermission = hasPermission(request.user, "submissions.editorial");
       const canAct =
         submission !== null &&
         (submission.authorId === request.user.sub ||
           isAdmin(request.user) ||
+          hasEditorialPermission ||
           (hasAnyRole(request.user, "EDITOR") &&
             (await submissions.isPublisherEditorMember(submission.journalId, request.user.sub))) ||
           (hasAnyRole(request.user, "PUBLISHER") &&
@@ -201,8 +210,21 @@ export function buildApp(options: AppOptions): FastifyInstance {
       // canAct only grants visibility; applyTransition still enforces which
       // specific actions each role may perform (e.g. a publisher may only
       // ever reach "publish" here — every other action's role list excludes
-      // PUBLISHER).
-      const result = applyTransition(submission.status, parsed.data.action, request.user.roles);
+      // PUBLISHER). The workflow engine is keyed to the fixed UserRole enum
+      // and knows nothing about custom-role permissions, so a user whose
+      // *only* editorial authority is the `submissions.editorial` permission
+      // is granted an effective EDITOR role for this one check — the
+      // permission is meant to unlock exactly the same actions EDITOR does.
+      const effectiveRoles = hasEditorialPermission
+        ? [...request.user.roles, "EDITOR" as const]
+        : request.user.roles;
+      const rules = await submissions.getWorkflowActionRules(submission.journalId);
+      const result = applyTransition(
+        submission.status,
+        parsed.data.action,
+        effectiveRoles,
+        rules[parsed.data.action],
+      );
       if (!result.ok) {
         const statusCode = result.reason === "FORBIDDEN" ? 403 : 409;
         return reply.code(statusCode).send({ error: result.reason });
@@ -225,13 +247,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
       }
 
       if (parsed.data.action === "submit") {
-        // ADMIN is the platform-wide bypass role and stays a broadcast;
+        // ADMIN/SUPERADMIN are the platform-wide bypass roles and stay a broadcast;
         // EDITOR is now tenant-scoped, so only that journal's actual
         // publisher-member editors are notified — broadcasting to every
         // editor on the platform would leak another tenant's submission
         // titles to editors who can't even open the link.
         void notifier.notify({
-          role: ["ADMIN"],
+          role: ["ADMIN", "SUPERADMIN"],
           type: "SUBMISSION_SUBMITTED",
           data: { title: submission.title },
         });
@@ -296,7 +318,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
     );
     if (!submission) return reply.code(404).send({ error: "NOT_FOUND" });
 
-    const result = applyTransition(submission.status, "publish", ["PUBLISHER"]);
+    // Route the API-key path through the same tenant override a publisher
+    // configured on the JWT-driven path — otherwise a tenant's own key would
+    // silently bypass a restriction they set on "publish" for themselves.
+    const rules = await submissions.getWorkflowActionRules(submission.journalId);
+    const result = applyTransition(submission.status, "publish", ["PUBLISHER"], rules.publish);
     if (!result.ok) {
       const statusCode = result.reason === "FORBIDDEN" ? 403 : 409;
       return reply.code(statusCode).send({ error: result.reason });
