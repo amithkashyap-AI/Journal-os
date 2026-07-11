@@ -57,7 +57,11 @@ export function LoginForm() {
             <p className="text-xs text-destructive mt-1">{errors.password.message}</p>
           )}
         </div>
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          className="w-full shadow-[0_0_0px_var(--primary)] transition-shadow duration-300 hover:shadow-[var(--shadow-glow)]"
+          disabled={isSubmitting}
+        >
           <LogIn /> {isSubmitting ? "Signing in…" : "Sign in"}
         </Button>
       </form>
