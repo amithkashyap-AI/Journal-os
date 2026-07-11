@@ -37,7 +37,7 @@ function DashboardShellInner({
   const { collapsed } = useSidebar();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-mesh min-h-screen">
       <Sidebar logo={sidebarLogo} footer={sidebarFooter}>
         {sidebarContent}
       </Sidebar>

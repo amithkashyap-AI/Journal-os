@@ -44,7 +44,11 @@ export function RegisterForm() {
         <Input id="password" type="password" autoComplete="new-password" {...field("password")} />
         {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
       </div>
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button
+        type="submit"
+        className="w-full shadow-[0_0_0px_var(--primary)] transition-shadow duration-300 hover:shadow-[var(--shadow-glow)]"
+        disabled={isSubmitting}
+      >
         <UserPlus /> {isSubmitting ? "Creating account…" : "Register"}
       </Button>
     </form>

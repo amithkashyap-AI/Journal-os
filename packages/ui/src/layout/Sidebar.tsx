@@ -77,7 +77,7 @@ export function Sidebar({ children, logo, footer }: SidebarProps) {
         <div className="flex h-14 items-center gap-3 border-b border-sidebar-border px-4">
           {logo ?? (
             <>
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <div className="bg-gradient-brand ring-1 ring-white/10 flex size-8 shrink-0 items-center justify-center rounded-lg text-primary-foreground shadow-[var(--shadow-glow)]">
                 <BookOpenText className="size-4" />
               </div>
               {(!collapsed || mobileOpen) && (

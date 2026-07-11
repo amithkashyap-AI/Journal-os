@@ -62,11 +62,12 @@ export function StatsCard({
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-card p-5",
+        "group relative overflow-hidden rounded-lg border border-border bg-card p-5 shadow-xs transition-all duration-200 hover:shadow-md",
         className,
       )}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-brand-50/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:to-brand-900/10" />
+      <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-2">
           <p className="text-[13px] font-medium text-muted-foreground">{label}</p>
           <p className="text-3xl font-semibold tracking-tight text-foreground">

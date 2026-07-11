@@ -41,7 +41,7 @@ export function NavLink({
       className={cn(
         "group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150 min-w-0",
         isActive
-          ? "bg-primary/10 text-primary dark:bg-primary/15"
+          ? "bg-primary/10 text-primary shadow-[var(--shadow-glow)] dark:bg-primary/15"
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
         collapsed && "justify-center px-0",
       )}
