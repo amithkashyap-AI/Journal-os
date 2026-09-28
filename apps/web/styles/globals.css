@@ -1,2 +1,414 @@
 @import "@rpos/design-system/theme.css";
 @import "tailwindcss";
+
+/* ═════════════════════════════════════════════════════════════════════════════
+ * RPOS WEB3 UI DESIGN SYSTEM & GOLDEN RATIO ARCHITECTURE
+ * Luminous Oceanic Sapphire & Celestial Navy Canvas (NOT dull black)
+ * Zero-runtime CSS, 100% responsive, high-performance SSR/RSC.
+ * ═════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Color Variable Overrides (Eliminates pitch-black canvas) ─────────────── */
+:root,
+.dark,
+html.theme-slate {
+  /* Rich Luminous Oceanic Sapphire Base (NOT dull black!) */
+  --background: #0a1b32;
+  --foreground: #f8fafc;
+  --card: rgba(16, 36, 64, 0.78);
+  --card-foreground: #f8fafc;
+  --popover: #0d2545;
+  --popover-foreground: #f8fafc;
+  --primary: #087f8c;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(20, 48, 84, 0.65);
+  --secondary-foreground: #e2e8f0;
+  --muted: rgba(20, 48, 84, 0.45);
+  --muted-foreground: #94a3b8;
+  --accent: #2dd4bf;
+  --accent-foreground: #0a1b32;
+  --border: rgba(45, 212, 191, 0.18);
+  --input: rgba(13, 30, 54, 0.85);
+  --ring: #2dd4bf;
+
+  /* Web3 Glass Sidebar */
+  --sidebar-background: rgba(10, 24, 46, 0.85);
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-border: rgba(45, 212, 191, 0.15);
+  --sidebar-accent: rgba(16, 42, 76, 0.75);
+  --sidebar-muted: #64748b;
+}
+
+/* ─── Keyframe Animations ─────────────────────────────────────────────────── */
+
+@keyframes aurora-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes float-golden {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(0.4deg); }
+}
+
+@keyframes float-reverse {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(8px) rotate(-0.4deg); }
+}
+
+@keyframes pulse-teal-glow {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+    filter: drop-shadow(0 0 16px rgba(45, 212, 191, 0.4));
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 36px rgba(45, 212, 191, 0.75));
+  }
+}
+
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-150%) skewX(-15deg); }
+  100% { transform: translateX(250%) skewX(-15deg); }
+}
+
+@keyframes ping-slow {
+  0% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* ─── Global Background & Atmosphere (Rich Oceanic Sapphire, NOT Black) ───── */
+
+body,
+.bg-mesh,
+.rpos-bg-ambient {
+  background: 
+    radial-gradient(ellipse 90% 70% at 15% -10%, #133966 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 85% 10%, #0d4670 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 50% 100%, #0b2f52 0%, transparent 60%),
+    #0a1b32 !important;
+  background-attachment: fixed !important;
+  color: #f8fafc;
+  min-height: 100vh;
+}
+
+.bg-grid-dots {
+  background-image: radial-gradient(rgba(45, 212, 191, 0.15) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.bg-grid-cyber {
+  background-size: 38.2px 38.2px; /* Golden ratio sub-grid (100 / 2.618 ≈ 38.2) */
+  background-image: 
+    linear-gradient(to right, rgba(45, 212, 191, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(45, 212, 191, 0.05) 1px, transparent 1px);
+}
+
+/* ─── Web3 Glassmorphism 2.0 Surfaces ─────────────────────────────────────── */
+
+.glass-morphic,
+.rpos-card,
+.web3-card {
+  background: rgba(14, 34, 60, 0.76);
+  backdrop-filter: blur(28px) saturate(190%) contrast(105%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%) contrast(105%);
+  border: 1px solid rgba(45, 212, 191, 0.16);
+  box-shadow: 
+    0 16px 40px -8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 16px 0 rgba(8, 127, 140, 0.1);
+}
+
+.glass-morphic-highlight,
+.rpos-card-elevated,
+.web3-card-elevated {
+  background: rgba(16, 40, 72, 0.85);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  box-shadow: 
+    0 24px 50px -12px rgba(0, 0, 0, 0.65),
+    0 0 35px -8px rgba(8, 127, 140, 0.35),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.25);
+}
+
+.rpos-card-interactive,
+.web3-card-interactive {
+  transition: all 0.22s cubic-bezier(0.2, 0, 0, 1);
+}
+.rpos-card-interactive:hover,
+.web3-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(45, 212, 191, 0.45);
+  box-shadow: 
+    0 20px 45px -10px rgba(0, 0, 0, 0.65),
+    0 0 30px -5px rgba(8, 127, 140, 0.35),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.glass-pill,
+.web3-pill {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(45, 212, 191, 0.18);
+}
+
+/* ─── Web3 Typography & Gradients ─────────────────────────────────────────── */
+
+.text-gradient-oceanic,
+.web3-gradient-text {
+  background: linear-gradient(135deg, #ffffff 0%, #a7f3d0 35%, #2dd4bf 70%, #087f8c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #ffffff 0%, #fef08a 45%, #f59e0b 80%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-silver {
+  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 50%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.rpos-golden-lead {
+  line-height: 1.618;
+}
+
+/* ─── Web3 Action Buttons ─────────────────────────────────────────────────── */
+
+.rpos-btn-primary,
+.web3-btn-primary {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #087f8c 0%, #0d9488 50%, #14b8a6 100%);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  box-shadow: 0 4px 20px rgba(8, 127, 140, 0.35);
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+.rpos-btn-primary:hover,
+.web3-btn-primary:hover {
+  box-shadow: 0 6px 30px rgba(45, 212, 191, 0.55);
+  transform: translateY(-1px);
+}
+.rpos-btn-primary:active,
+.web3-btn-primary:active {
+  transform: translateY(0);
+}
+
+.rpos-btn-secondary,
+.web3-btn-secondary {
+  border-radius: 0.75rem;
+  background: rgba(18, 44, 76, 0.7);
+  border: 1px solid rgba(45, 212, 191, 0.2);
+  color: #e2e8f0;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.625rem 1.25rem;
+  backdrop-filter: blur(14px);
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+.rpos-btn-secondary:hover,
+.web3-btn-secondary:hover {
+  background: rgba(24, 56, 96, 0.8);
+  border-color: rgba(45, 212, 191, 0.4);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* ─── Web3 Status Beacons & Badges ────────────────────────────────────────── */
+
+.rpos-beacon-online,
+.web3-beacon-live {
+  position: relative;
+  display: inline-flex;
+  width: 0.5rem;
+  height: 0.5rem;
+}
+.rpos-beacon-online::before,
+.web3-beacon-live::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background-color: #34d399;
+  animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.rpos-beacon-online::after,
+.web3-beacon-live::after {
+  content: "";
+  position: relative;
+  display: inline-flex;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: #10b981;
+}
+
+.rpos-beacon-offline {
+  display: inline-flex;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: #ef4444;
+}
+
+.rpos-badge-teal,
+.web3-badge-teal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: rgba(8, 127, 140, 0.18);
+  color: #2dd4bf;
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  box-shadow: 0 0 12px rgba(45, 212, 191, 0.15);
+}
+
+.rpos-badge-emerald,
+.web3-badge-emerald {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.15);
+}
+
+.rpos-badge-amber,
+.web3-badge-amber {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+}
+
+.rpos-badge-crimson {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* ─── Web3 Table & Form Utilities ─────────────────────────────────────────── */
+
+.rpos-table-container,
+.web3-table-container {
+  overflow-x: auto;
+  border-radius: 1rem;
+  border: 1px solid rgba(45, 212, 191, 0.16);
+  background: rgba(12, 28, 52, 0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.5);
+}
+
+.rpos-table-header,
+.web3-table-header {
+  border-bottom: 1px solid rgba(45, 212, 191, 0.14);
+  background: rgba(18, 42, 74, 0.75);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  font-family: var(--font-mono, monospace);
+}
+
+.rpos-table-row,
+.web3-table-row {
+  border-bottom: 1px solid rgba(45, 212, 191, 0.06);
+  transition: all 0.15s ease;
+}
+.rpos-table-row:hover,
+.web3-table-row:hover {
+  background-color: rgba(45, 212, 191, 0.06);
+}
+
+.rpos-input,
+.web3-input {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  background: rgba(10, 24, 44, 0.75);
+  border: 1px solid rgba(45, 212, 191, 0.18);
+  color: #f8fafc;
+  outline: none;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(12px);
+}
+.rpos-input::placeholder,
+.web3-input::placeholder {
+  color: #64748b;
+}
+.rpos-input:focus,
+.web3-input:focus {
+  border-color: #2dd4bf;
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.25), 0 0 20px rgba(45, 212, 191, 0.15);
+  background: rgba(14, 34, 60, 0.9);
+}
+
+/* ─── Global Animation Helpers ────────────────────────────────────────────── */
+
+.animate-float-golden {
+  animation: float-golden 6.18s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 7.64s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-pulse-teal {
+  animation: pulse-teal-glow 4.2s ease-in-out infinite;
+}

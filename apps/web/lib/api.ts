@@ -1,5 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { cache } from "react";
+import type { PublicUser } from "@rpos/types";
 
 export const GATEWAY_API = process.env.GATEWAY_API_URL ?? "http://localhost:4000";
 export const AUTH_API = process.env.AUTH_API_URL ?? "http://localhost:4001";
@@ -23,13 +25,51 @@ export async function apiFetch(
   init: RequestInit = {},
 ): Promise<Response> {
   const token = await getToken();
-  return fetch(`${base}${path}`, {
-    ...init,
-    cache: "no-store",
-    headers: {
-      "content-type": "application/json",
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...init.headers,
-    },
-  });
+  try {
+    return await fetch(`${base}${path}`, {
+      ...init,
+      cache: "no-store",
+      signal: init.signal ?? AbortSignal.timeout(15000),
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...init.headers,
+      },
+    });
+  } catch (error) {
+    const isTimeout = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    console.warn(`[apiFetch] ${base}${path} ${isTimeout ? "timed out" : "failed"}:`, error instanceof Error ? error.message : error);
+    return new Response(
+      JSON.stringify({ 
+        error: isTimeout ? "GATEWAY_TIMEOUT" : "SERVICE_UNAVAILABLE",
+        message: error instanceof Error ? error.message : "Service request failed",
+        submissions: [],
+        reviews: [],
+        journals: [],
+        publishers: []
+      }), 
+      {
+        status: isTimeout ? 504 : 503,
+        headers: { "content-type": "application/json" },
+      }
+    );
+  }
 }
+
+/**
+ * Deduplicated per-request user lookup. Layout and child pages call this
+ * freely without triggering duplicate HTTP requests to the auth service.
+ */
+export const getAuthenticatedUser = cache(async (): Promise<PublicUser | null> => {
+  const token = await getToken();
+  if (!token) return null;
+  try {
+    const res = await apiFetch(AUTH_API, "/v1/auth/me");
+    if (!res.ok) return null;
+    const data = (await res.json()) as { user: PublicUser };
+    return data.user;
+  } catch (e) {
+    console.error("Failed to authenticate user:", e);
+    return null;
+  }
+});

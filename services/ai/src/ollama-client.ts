@@ -35,7 +35,7 @@ export class OllamaAiClient implements AiClient {
       res = await fetch(`${this.baseUrl}/api/chat`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({keep_alive: "10m", options: {temperature: 0, seed: 42, num_predict: 512}, ...body}),
         // Ollama's first call after a cold start can take well over a minute
         // while it loads the model into memory.
         signal: AbortSignal.timeout(120_000),
@@ -58,11 +58,11 @@ export class OllamaAiClient implements AiClient {
 
   /** Structured extraction (keywords, revised text) — the model reliably
    * follows a fixed JSON shape for these constrained tasks. */
-  private async chat(systemPrompt: string, userPrompt: string): Promise<Record<string, unknown>> {
+  private async chat(systemPrompt: string, userPrompt: string, format: string | Record<string, unknown> = "json"): Promise<Record<string, unknown>> {
     const content = await this.request({
       model: this.model,
       stream: false,
-      format: "json",
+      format,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -99,12 +99,15 @@ export class OllamaAiClient implements AiClient {
     const parsed = await this.chat(
       'You suggest academic keywords for a manuscript. Reply with ONLY a JSON object of the exact shape {"keywords": ["keyword1", "keyword2", ...]} — 5 to 8 concise keywords or short phrases, no explanation, no markdown.',
       `Title: ${title}\n\nAbstract: ${abstract}`,
+      {type: "object", properties: {keywords: {type: "array", minItems: 1, maxItems: 8, items: {type: "string", minLength: 2, maxLength: 100}}}, required: ["keywords"], additionalProperties: false},
     );
     const keywords = parsed.keywords;
     if (!Array.isArray(keywords) || !keywords.every((k) => typeof k === "string")) {
       throw new AiUnavailableError("Ollama returned an unexpected keywords shape");
     }
-    return keywords.slice(0, 8);
+    const clean = [...new Set(keywords.map(k => k.trim().toLowerCase()).filter(k => k.length >= 2 && k.length <= 100))].slice(0, 8);
+    if (!clean.length) throw new AiUnavailableError("Ollama returned no usable keywords");
+    return clean;
   }
 
   async tightenAbstract(abstract: string): Promise<string> {

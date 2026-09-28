@@ -43,20 +43,20 @@ export interface ReviewStore {
   findById(id: string): Promise<StoredReview | null>;
   list(filter: ReviewFilter): Promise<StoredReview[]>;
   update(id: string, patch: ReviewPatch): Promise<StoredReview>;
-  /** Whether the given user is an EDITOR member of the publisher behind this journal. */
-  isPublisherEditorMember(journalId: string, userId: string): Promise<boolean>;
+  /** Whether this user is explicitly assigned as an editor of this journal. */
+  isJournalEditor(journalId: string, userId: string): Promise<boolean>;
   /** Whether the given user is a REVIEWER member of the publisher behind this journal. */
   isPublisherReviewerMember(journalId: string, userId: string): Promise<boolean>;
-  /** Reviews visible to an editor: only those under journals of publishers they're a member of. */
+  /** Reviews visible to an editor: only explicitly assigned journals. */
   listForEditorMember(userId: string, submissionId?: string): Promise<StoredReview[]>;
-  /** userIds of every EDITOR member of the publisher behind this journal (for scoped notification). */
+  /** userIds of the editors assigned to this journal (for scoped notification). */
   listEditorMemberIds(journalId: string): Promise<string[]>;
 }
 
 export class InMemoryReviewStore implements ReviewStore {
   private readonly reviews = new Map<string, StoredReview>();
   private readonly submissions = new Map<string, SubmissionInfo>();
-  private readonly editorMembers = new Map<string, Set<string>>(); // publisherId -> userIds
+  private readonly editorMembers = new Map<string, Set<string>>(); // journalId -> userIds
   private readonly reviewerMembers = new Map<string, Set<string>>(); // publisherId -> userIds
   private readonly journalPublishers = new Map<string, string>(); // journalId -> publisherId
 
@@ -69,11 +69,11 @@ export class InMemoryReviewStore implements ReviewStore {
     this.journalPublishers.set(journalId, publisherId);
   }
 
-  /** Test helper mirroring a PublisherMember(role: EDITOR) row. */
-  addEditorMember(publisherId: string, userId: string): void {
-    const set = this.editorMembers.get(publisherId) ?? new Set<string>();
+  /** Test helper mirroring a JournalEditorAssignment row. */
+  assignJournalEditor(journalId: string, userId: string): void {
+    const set = this.editorMembers.get(journalId) ?? new Set<string>();
     set.add(userId);
-    this.editorMembers.set(publisherId, set);
+    this.editorMembers.set(journalId, set);
   }
 
   /** Test helper mirroring a PublisherMember(role: REVIEWER) row. */
@@ -87,10 +87,8 @@ export class InMemoryReviewStore implements ReviewStore {
     return this.submissions.get(id) ?? null;
   }
 
-  async isPublisherEditorMember(journalId: string, userId: string): Promise<boolean> {
-    const publisherId = this.journalPublishers.get(journalId);
-    if (!publisherId) return false;
-    return this.editorMembers.get(publisherId)?.has(userId) ?? false;
+  async isJournalEditor(journalId: string, userId: string): Promise<boolean> {
+    return this.editorMembers.get(journalId)?.has(userId) ?? false;
   }
 
   async isPublisherReviewerMember(journalId: string, userId: string): Promise<boolean> {
@@ -107,15 +105,12 @@ export class InMemoryReviewStore implements ReviewStore {
       if (submissionId !== undefined && review.submissionId !== submissionId) return false;
       const submission = this.submissions.get(review.submissionId);
       if (!submission) return false;
-      const publisherId = this.journalPublishers.get(submission.journalId);
-      return publisherId !== undefined && memberPublisherIds.has(publisherId);
+      return memberPublisherIds.has(submission.journalId);
     });
   }
 
   async listEditorMemberIds(journalId: string): Promise<string[]> {
-    const publisherId = this.journalPublishers.get(journalId);
-    if (!publisherId) return [];
-    return [...(this.editorMembers.get(publisherId) ?? [])];
+    return [...(this.editorMembers.get(journalId) ?? [])];
   }
 
   async create(data: CreateReviewData): Promise<StoredReview> {

@@ -34,7 +34,7 @@ export interface AppOptions {
 }
 
 function toPublicUser(user: StoredUser): PublicUser {
-  return { id: user.id, email: user.email, name: user.name, roles: user.roles };
+  return { id: user.id, email: user.email, name: user.name, active: user.active, roles: user.roles };
 }
 
 function isSuperadmin(user: JwtPayload): boolean {
@@ -99,6 +99,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       email,
       name: parsed.data.name,
       passwordHash,
+      active: true,
       roles: ["AUTHOR"],
     });
 
@@ -130,6 +131,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       email,
       name: parsed.data.name,
       passwordHash,
+      active: true,
       roles: ["ADMIN"],
     });
 
@@ -146,7 +148,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
 
     const user = await users.findByEmail(parsed.data.email.toLowerCase());
-    if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+    if (!user || !user.active || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
       return reply.code(401).send({ error: "INVALID_CREDENTIALS" });
     }
 
@@ -221,6 +223,20 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
 
     const updated = await users.updateRoles(id, parsed.data.roles);
+    return reply.send({ user: toPublicUser(updated) });
+  });
+
+  app.put("/v1/users/:id/active", { onRequest: [app.authenticate] }, async (request, reply) => {
+    if (!isSuperadmin(request.user)) return reply.code(403).send({ error: "SUPERADMIN_REQUIRED" });
+    const parsed = z.object({ active: z.boolean() }).safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: "VALIDATION_ERROR" });
+    const { id } = request.params as { id: string };
+    const target = await users.findById(id);
+    if (!target) return reply.code(404).send({ error: "USER_NOT_FOUND" });
+    if (target.id === request.user.sub && !parsed.data.active) {
+      return reply.code(409).send({ error: "CANNOT_SUSPEND_SELF" });
+    }
+    const updated = await users.updateActive(id, parsed.data.active);
     return reply.send({ user: toPublicUser(updated) });
   });
 
@@ -328,4 +344,3 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   return app;
 }
-

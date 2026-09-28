@@ -19,6 +19,7 @@ export interface CreateFileData {
 }
 
 export interface FileStore {
+  isJournalEditor(fileId: string, userId: string): Promise<boolean>;
   create(data: CreateFileData): Promise<StoredFile>;
   findById(id: string): Promise<StoredFile | null>;
   /**
@@ -29,6 +30,9 @@ export interface FileStore {
 }
 
 export class InMemoryFileStore implements FileStore {
+  private readonly editorGrants = new Set<string>();
+  grantEditor(fileId: string, userId: string): void { this.editorGrants.add(`${fileId}:${userId}`); }
+  async isJournalEditor(fileId: string, userId: string): Promise<boolean> { return this.editorGrants.has(`${fileId}:${userId}`); }
   private readonly byId = new Map<string, StoredFile>();
   private readonly reviewerGrants = new Set<string>();
 

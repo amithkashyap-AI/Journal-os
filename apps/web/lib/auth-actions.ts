@@ -1,5 +1,6 @@
 "use server";
 
+import { submissionReturn } from "./submission-return";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createAdminSchema, loginSchema, registerSchema } from "@rpos/validation";
@@ -37,15 +38,22 @@ interface LoginResult {
   user: PublicUser;
 }
 
-async function loginRequest(email: string, password: string): Promise<LoginResult | null> {
-  const res = await fetch(`${AUTH_API}/v1/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password }),
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  return (await res.json()) as LoginResult;
+async function loginRequest(email: string, password: string): Promise<LoginResult | ActionError> {
+  try {
+    const res = await fetch(`${AUTH_API}/v1/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 401) return { error: "Invalid email or password." };
+    if (res.status === 429) return { error: "Too many sign-in attempts. Please try again shortly." };
+    if (!res.ok) return { error: "Sign-in is temporarily unavailable. Please try again shortly." };
+    return (await res.json()) as LoginResult;
+  } catch {
+    return { error: "Unable to reach the sign-in service. Please try again shortly." };
+  }
 }
 
 /** Where a freshly logged-in user lands, by role priority. */
@@ -56,18 +64,18 @@ function homeRouteFor(roles: UserRole[]): string {
   return "/dashboard";
 }
 
-export async function login(input: unknown): Promise<ActionError | undefined> {
+export async function login(input: unknown, next?: string): Promise<ActionError | undefined> {
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) return { error: "Invalid email or password." };
 
   const result = await loginRequest(parsed.data.email, parsed.data.password);
-  if (!result) return { error: "Invalid email or password." };
+  if ("error" in result) return result;
 
   await setSession(result.accessToken);
-  redirect(homeRouteFor(result.user.roles));
+  redirect(submissionReturn(next) ?? homeRouteFor(result.user.roles));
 }
 
-export async function register(input: unknown): Promise<ActionError | undefined> {
+export async function register(input: unknown, next?: string): Promise<ActionError | undefined> {
   const parsed = registerSchema.safeParse(input);
   if (!parsed.success) return { error: "Check your details — password must be 8+ characters." };
 
@@ -81,10 +89,10 @@ export async function register(input: unknown): Promise<ActionError | undefined>
   if (!res.ok) return { error: "Registration failed — please try again." };
 
   const result = await loginRequest(parsed.data.email, parsed.data.password);
-  if (!result) redirect("/login");
+  if ("error" in result) redirect(submissionReturn(next) ? `/login?next=${encodeURIComponent(submissionReturn(next)!)}` : "/login");
 
   await setSession(result.accessToken);
-  redirect(homeRouteFor(result.user.roles));
+  redirect(submissionReturn(next) ?? homeRouteFor(result.user.roles));
 }
 
 export async function logout(): Promise<void> {
@@ -138,6 +146,25 @@ export async function updateUserRoles(
   }
 }
 
+export async function updateUserActive(
+  userId: string,
+  active: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(AUTH_API, `/v1/users/${userId}/active`, {
+      method: "PUT",
+      body: JSON.stringify({ active }),
+    });
+    if (!res.ok) {
+      const body = await res.json() as { error?: string };
+      return { success: false, error: body.error === "CANNOT_SUSPEND_SELF" ? "You cannot suspend your own account." : body.error || "Failed to update account status" };
+    }
+    return { success: true };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update account status" };
+  }
+}
+
 export interface ServiceStatus {
   name: string;
   /** The configured base URL — services can bind to a fallback port via findFreePort(), so this reflects config, not necessarily the live port. */
@@ -160,7 +187,7 @@ export async function checkServicesHealth(): Promise<ServiceStatus[]> {
   return Promise.all(
     services.map(async (service) => {
       try {
-        const res = await fetch(`${service.url}/health`, { signal: AbortSignal.timeout(1000) });
+        const res = await fetch(`${service.url}/health`, { signal: AbortSignal.timeout(2500) });
         return { name: service.name, url: service.url, status: res.ok ? "online" : "offline" };
       } catch {
         return { name: service.name, url: service.url, status: "offline" };
@@ -168,4 +195,3 @@ export async function checkServicesHealth(): Promise<ServiceStatus[]> {
     }),
   );
 }
-

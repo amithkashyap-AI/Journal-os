@@ -42,6 +42,7 @@ function Navbar() {
           <a href="#pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             Pricing
           </a>
+          <a href={`${process.env.WEB_APP_URL ?? "http://localhost:3000"}/discover`} className="text-sm text-muted-foreground">Discover journals</a>
           <Link href="/articles" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
             Published Research
           </Link>
@@ -49,13 +50,13 @@ function Navbar() {
 
         <div className="flex items-center gap-3">
           <Link
-            href="/login"
+            href={`${process.env.WEB_APP_URL ?? "http://localhost:3000"}/login`}
             className="hidden rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
           >
             Sign in
           </Link>
           <Link
-            href="/register"
+            href={`${process.env.WEB_APP_URL ?? "http://localhost:3000"}/register`}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:shadow-md hover:shadow-primary/20"
           >
             Get Started
@@ -115,7 +116,7 @@ function Hero() {
         {/* CTA Buttons */}
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Link
-            href="/register"
+            href={`${process.env.WEB_APP_URL ?? "http://localhost:3000"}/register`}
             className="group inline-flex items-center gap-2 rounded-xl bg-primary px-7 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30"
           >
             Start Publishing Free
@@ -621,7 +622,7 @@ function CTABanner() {
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
-                href="/register"
+                href={`${process.env.WEB_APP_URL ?? "http://localhost:3000"}/register`}
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm font-semibold text-brand-900 shadow-lg transition-all hover:shadow-xl"
               >
                 Start Publishing Free

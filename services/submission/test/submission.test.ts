@@ -40,7 +40,7 @@ describe("submission service", () => {
     // Tests that remap journal-1 to a different publisher re-grant
     // membership explicitly where needed.
     store.setJournalPublisher("journal-1", "pub-tenant-1");
-    store.addEditorMember("pub-tenant-1", "editor-1");
+    store.assignJournalEditor("journal-1", "editor-1");
   });
 
   function tokenFor(sub: string, roles: UserRole[]): string {
@@ -172,12 +172,27 @@ describe("submission service", () => {
     expect(all.json().submissions).toHaveLength(2);
   });
 
+  it("isolates journals even when they share one publisher", async () => {
+    store.setJournalPublisher("journal-sibling", "pub-tenant-1");
+    const draft = await app.inject({method: "POST", url: "/v1/submissions", headers: authHeader("author-2", ["AUTHOR"]), payload: {...DRAFT_PAYLOAD, journalId: "journal-sibling"}});
+    const id = draft.json().submission.id;
+    expect((await app.inject({method: "GET", url: `/v1/submissions/${id}`, headers: authHeader("editor-1", ["EDITOR"])})).statusCode).toBe(404);
+    expect((await act(id, "withdraw", "editor-1", ["EDITOR"])).statusCode).toBe(404);
+  });
+
+  it("allows a SUPERADMIN-only owner through the full default workflow", async () => {
+    const draft = await createDraft("author-1");
+    for (const action of ["submit", "start_review", "accept", "publish"]) {
+      expect((await act(draft.id, action, "owner", ["SUPERADMIN"])).statusCode).toBe(200);
+    }
+  });
+
   it("isolates editor visibility per tenant: an editor of one publisher cannot see or act on another's submissions", async () => {
     // journal-1 (default) belongs to pub-tenant-1; editor-1 is its member
     // (beforeEach). Set up a second, entirely separate publisher/journal
     // with its own editor.
     store.setJournalPublisher("journal-2", "pub-tenant-2");
-    store.addEditorMember("pub-tenant-2", "editor-2");
+    store.assignJournalEditor("journal-2", "editor-2");
 
     const draftA = await createDraft("author-1"); // journal-1 / pub-tenant-1
     await act(draftA.id, "submit", "author-1", ["AUTHOR"]);
@@ -502,7 +517,7 @@ describe("submission service", () => {
     it("lets the owning publisher's key publish an accepted submission via /publish", async () => {
       const draft = await createDraft("author-1");
       store.setJournalPublisher(draft.journalId, "pub-1-org");
-      store.addEditorMember("pub-1-org", "editor-1");
+      store.assignJournalEditor("journal-1", "editor-1");
       store.addApiKey("key-abc", "pub-1-org");
 
       await act(draft.id, "submit", "author-1", ["AUTHOR"]);
@@ -522,7 +537,7 @@ describe("submission service", () => {
     it("404s /publish for a submission under a journal this key doesn't own", async () => {
       const draft = await createDraft("author-1");
       store.setJournalPublisher(draft.journalId, "pub-1-org");
-      store.addEditorMember("pub-1-org", "editor-1");
+      store.assignJournalEditor("journal-1", "editor-1");
       store.addApiKey("key-other", "pub-2-org");
 
       await act(draft.id, "submit", "author-1", ["AUTHOR"]);
@@ -554,7 +569,7 @@ describe("submission service", () => {
     it("rejects /publish with a disabled key", async () => {
       const draft = await createDraft("author-1");
       store.setJournalPublisher(draft.journalId, "pub-1-org");
-      store.addEditorMember("pub-1-org", "editor-1");
+      store.assignJournalEditor("journal-1", "editor-1");
       store.addApiKey("key-abc", "pub-1-org", false);
 
       await act(draft.id, "submit", "author-1", ["AUTHOR"]);
@@ -576,38 +591,12 @@ describe("submission service", () => {
       return { authorization: `Bearer ${token}` };
     }
 
-    it("lets a user with only the submissions.editorial permission (no EDITOR role) perform editorial actions on someone else's submission", async () => {
+    it("does not let a custom permission bypass a journal assignment", async () => {
       const draft = await createDraft("author-1");
       await act(draft.id, "submit", "author-1", ["AUTHOR"]);
-
-      const permHeader = permissionAuthHeader("perm-user", ["submissions.editorial"]);
-
-      // Visibility: can read a submission they didn't author.
-      const read = await app.inject({
-        method: "GET",
-        url: `/v1/submissions/${draft.id}`,
-        headers: permHeader,
-      });
-      expect(read.statusCode).toBe(200);
-
-      // The actual editorial action succeeds — not just visibility.
-      const startReview = await app.inject({
-        method: "POST",
-        url: `/v1/submissions/${draft.id}/actions`,
-        headers: permHeader,
-        payload: { action: "start_review" },
-      });
-      expect(startReview.statusCode).toBe(200);
-      expect(startReview.json().submission.status).toBe("UNDER_REVIEW");
-
-      const accept = await app.inject({
-        method: "POST",
-        url: `/v1/submissions/${draft.id}/actions`,
-        headers: permHeader,
-        payload: { action: "accept" },
-      });
-      expect(accept.statusCode).toBe(200);
-      expect(accept.json().submission.status).toBe("ACCEPTED");
+      const headers = permissionAuthHeader("perm-user", ["submissions.editorial"]);
+      expect((await app.inject({method: "GET", url: `/v1/submissions/${draft.id}`, headers})).statusCode).toBe(404);
+      expect((await app.inject({method: "POST", url: `/v1/submissions/${draft.id}/actions`, headers, payload: {action: "start_review"}})).statusCode).toBe(404);
     });
 
     it("still 404s for a plain AUTHOR-only user with no permission and no relationship to the submission", async () => {
@@ -644,7 +633,7 @@ describe("submission service", () => {
 
       // An unconfigured second journal under a different publisher still uses the default.
       store.setJournalPublisher("journal-2", "pub-tenant-2");
-      store.addEditorMember("pub-tenant-2", "editor-2");
+      store.assignJournalEditor("journal-2", "editor-2");
       const draftB = await app.inject({
         method: "POST",
         url: "/v1/submissions",
@@ -686,7 +675,7 @@ describe("submission service", () => {
 
     it("the publisher API-key /publish route also respects a tenant override on publish", async () => {
       store.setJournalPublisher(DRAFT_PAYLOAD.journalId, "pub-1-org");
-      store.addEditorMember("pub-1-org", "editor-1");
+      store.assignJournalEditor("journal-1", "editor-1");
       store.addApiKey("key-abc", "pub-1-org");
       // Restrict publish to EDITOR only — the API key authenticates as
       // PUBLISHER, so this should now block it.

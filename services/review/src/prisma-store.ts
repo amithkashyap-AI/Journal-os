@@ -18,9 +18,9 @@ export class PrismaReviewStore implements ReviewStore {
     });
   }
 
-  async isPublisherEditorMember(journalId: string, userId: string): Promise<boolean> {
-    const count = await this.db.publisherMember.count({
-      where: { userId, role: "EDITOR", publisher: { journals: { some: { id: journalId } } } },
+  async isJournalEditor(journalId: string, userId: string): Promise<boolean> {
+    const count = await this.db.journalEditorAssignment.count({
+      where: { userId, journalId },
     });
     return count > 0;
   }
@@ -36,15 +36,15 @@ export class PrismaReviewStore implements ReviewStore {
     return this.db.review.findMany({
       where: {
         ...(submissionId ? { submissionId } : {}),
-        submission: { journal: { publisher: { members: { some: { userId, role: "EDITOR" } } } } },
+        submission: { journal: { editors: { some: { userId } } } },
       },
       orderBy: { createdAt: "desc" },
     });
   }
 
   async listEditorMemberIds(journalId: string): Promise<string[]> {
-    const members = await this.db.publisherMember.findMany({
-      where: { role: "EDITOR", publisher: { journals: { some: { id: journalId } } } },
+    const members = await this.db.journalEditorAssignment.findMany({
+      where: { journalId, user: { roles: { has: "EDITOR" } } },
       select: { userId: true },
     });
     return members.map((m) => m.userId);

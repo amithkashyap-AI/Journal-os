@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import fastifyJwt from "@fastify/jwt";
 import { z } from "zod";
+import { registerDiscoveryRoutes } from "./discovery.js";
 import {
   createJournalSchema,
   createPublisherSchema,
@@ -31,6 +32,7 @@ export interface AppOptions {
   journals: JournalStore;
   jwtSecret: string;
   logger?: boolean;
+  assessJournal?: (context: string) => Promise<{text: string; model: string}>;
 }
 
 function hasAnyRole(user: JwtPayload, ...roles: UserRole[]): boolean {
@@ -146,7 +148,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     "/v1/journals/:id",
     { onRequest: [app.authenticate] },
     async (request, reply) => {
-      if (!isManager(request.user) && !hasPermission(request.user, "journals.manage")) {
+      if (!isManager(request.user) && !hasAnyRole(request.user, "EDITOR")) {
         return reply.code(403).send({ error: "FORBIDDEN" });
       }
 
@@ -161,7 +163,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       const existing = await journals.findJournalById(request.params.id);
       if (!existing) return reply.code(404).send({ error: "NOT_FOUND" });
 
-      if (!isAdmin(request.user)) {
+      if (!isAdmin(request.user) && !(hasAnyRole(request.user, "EDITOR") && await journals.isJournalEditor(existing.id, request.user.sub))) {
         const publisher = await journals.findPublisherById(existing.publisherId);
         if (!publisher || publisher.ownerId !== request.user.sub) {
           return reply.code(403).send({ error: "NOT_YOUR_PUBLISHER" });
@@ -480,5 +482,6 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.send({ journals: mine });
   });
 
+  registerDiscoveryRoutes(app, options);
   return app;
 }

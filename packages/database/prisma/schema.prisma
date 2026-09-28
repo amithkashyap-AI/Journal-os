@@ -46,6 +46,7 @@ model User {
   email        String     @unique
   passwordHash String
   name         String
+  active       Boolean    @default(true)
   roles        UserRole[] @default([AUTHOR])
   affiliation  String?
   orcid        String?    @unique
@@ -58,6 +59,7 @@ model User {
   ownedPublishers  Publisher[]
   publisherMember  PublisherMember[]
   customRoles      UserCustomRole[]
+  journalAssignments JournalEditorAssignment[]
 
   @@map("users")
 }
@@ -185,6 +187,10 @@ model Journal {
 
   publisher   Publisher    @relation(fields: [publisherId], references: [id])
   submissions Submission[]
+  editors JournalEditorAssignment[]
+  indexing JournalIndexingEvidence[]
+  assessment JournalAssessment?
+  publicationProfile JournalPublicationProfile?
 
   @@map("journals")
 }
@@ -310,4 +316,58 @@ model Notification {
 
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model JournalEditorAssignment {
+  journalId String
+  userId String
+  createdAt DateTime @default(now())
+  journal Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([journalId, userId])
+  @@index([userId])
+  @@map("journal_editor_assignments")
+}
+
+model JournalIndexingEvidence {
+  journalId String
+  source String
+  status String
+  quartile String?
+  indexYear Int?
+  subjectCategory String?
+  coverageStartYear Int?
+  coverageEndYear Int?
+  sourceUrl String
+  checkedAt DateTime
+  notes String
+  verifiedBy String
+  updatedAt DateTime @updatedAt
+  journal Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  @@id([journalId, source])
+  @@map("journal_indexing_evidence")
+}
+
+model JournalAssessment {
+  journalId String @id
+  text String
+  model String
+  evidenceHash String
+  generatedAt DateTime @default(now())
+  journal Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  @@map("journal_assessments")
+}
+
+model JournalPublicationProfile {
+  journalId String @id
+  categories String[]
+  feeModel String
+  accessModel String
+  publicationWeeks Int?
+  sourceUrl String
+  checkedAt DateTime
+  notes String
+  verifiedBy String
+  journal Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  @@map("journal_publication_profiles")
 }

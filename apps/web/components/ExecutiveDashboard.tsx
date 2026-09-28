@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ReactECharts from "echarts-for-react";
+import dynamic from "next/dynamic";
 import {
   Activity,
   AlertTriangle,
@@ -24,6 +24,14 @@ import {
 } from "@rpos/ui";
 import { generateExecutiveSummary, askExecutiveAssistant } from "../lib/executive-actions";
 import type { AlertItem, ExecutiveStats } from "../lib/executive-stats";
+
+// ECharts is large and only needed below the account-management controls.
+// Keeping it in a client-only chunk makes owner administration interactive
+// before analytics code and chart rendering arrive.
+const ReactECharts = dynamic(() => import("echarts-for-react"), {
+  ssr: false,
+  loading: () => <div className="h-[220px] animate-pulse rounded-md bg-secondary/30" />,
+});
 
 // Validated dark-mode categorical palette (packages @rpos/design-system's card
 // surface), fixed order — see the dataviz skill: hues are assigned by role,

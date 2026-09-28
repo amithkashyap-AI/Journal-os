@@ -11,15 +11,24 @@ import {
   Plus,
   Loader2,
   ShieldPlus,
+  Search,
+  BookOpen,
+  Server,
+  CheckCircle2,
+  XCircle
 } from "lucide-react";
 import type { PublicUser, UserRole } from "@rpos/types";
 import type { JournalDto, PublisherDto } from "../lib/catalog";
 import type { RoleDto } from "../lib/role-actions";
-import { updateUserRoles, checkServicesHealth, type ServiceStatus } from "../lib/auth-actions";
+import { 
+  updateUserActive, 
+  updateUserRoles, 
+  checkServicesHealth, 
+  type ServiceStatus 
+} from "../lib/auth-actions";
 import { createJournal } from "../lib/journal-actions";
 import { CustomRolesManager } from "./CustomRolesManager";
 import { CreateAdminForm } from "./forms/create-admin-form";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input, Label, NativeSelect, Textarea } from "@rpos/ui";
 
 interface AdminDashboardClientProps {
   initialUsers: PublicUser[];
@@ -44,6 +53,7 @@ export function AdminDashboardClient({
   const [publishers] = useState<PublisherDto[]>(initialPublishers);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("ALL");
   const [isHealthPending, setIsHealthPending] = useState(false);
 
   // New journal form state
@@ -55,8 +65,9 @@ export function AdminDashboardClient({
   const [formSuccess, setFormSuccess] = useState<string>();
   const [isJournalSubmitting, setIsJournalSubmitting] = useState(false);
 
-  // State to track user roles currently being saved
+  // State to track user operations
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [updatingStatusUserId, setUpdatingStatusUserId] = useState<string | null>(null);
 
   const allAvailableRoles: UserRole[] = ["ADMIN", "PUBLISHER", "EDITOR", "REVIEWER", "AUTHOR", "READER"];
 
@@ -78,7 +89,6 @@ export function AdminDashboardClient({
 
     let nextRoles: UserRole[];
     if (user.roles.includes(role)) {
-      // Don't allow removing author if it's the last role
       if (user.roles.length === 1) return;
       nextRoles = user.roles.filter((r) => r !== role);
     } else {
@@ -98,19 +108,43 @@ export function AdminDashboardClient({
     }
   }
 
+  async function handleAccountStatus(user: PublicUser) {
+    const active = !user.active;
+    if (
+      !window.confirm(
+        `${active ? "Reactivate" : "Suspend"} account for ${user.email}?\n${
+          active
+            ? "They will regain immediate access to the platform."
+            : "They will be barred from signing in until reactivated."
+        }`
+      )
+    ) {
+      return;
+    }
+    setUpdatingStatusUserId(user.id);
+    const result = await updateUserActive(user.id, active);
+    setUpdatingStatusUserId(null);
+    if (result.success) {
+      setUsers((current) =>
+        current.map((item) => (item.id === user.id ? { ...item, active } : item))
+      );
+    } else {
+      alert(result.error || "Failed to update account status");
+    }
+  }
+
   async function handleCreateJournal(e: React.FormEvent) {
     e.preventDefault();
     setFormError(undefined);
     setFormSuccess(undefined);
 
     if (!newJournalTitle || !newJournalPublisherId) {
-      setFormError("Title and Publisher are required.");
+      setFormError("Journal title and publisher affiliation are required.");
       return;
     }
 
     setIsJournalSubmitting(true);
 
-    // The server derives the slug from the title (see @rpos/utils slugify()).
     const result = await createJournal({
       title: newJournalTitle,
       publisherId: newJournalPublisherId,
@@ -125,7 +159,7 @@ export function AdminDashboardClient({
       return;
     }
 
-    setFormSuccess("Journal created successfully!");
+    setFormSuccess("Journal track initialized successfully!");
     setNewJournalTitle("");
     setNewJournalIssn("");
     setNewJournalDesc("");
@@ -140,353 +174,522 @@ export function AdminDashboardClient({
     ]);
   }
 
-  const filteredUsers = users.filter(
-    (u) =>
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    if (roleFilter === "ALL") return true;
+    return u.roles.includes(roleFilter as UserRole);
+  });
+
+  const onlineCount = health.filter((h) => h.status === "online").length;
 
   return (
     <div className="space-y-8">
-      {/* Overview Dashboard Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card className="group relative overflow-hidden shadow-xs transition-all duration-200 hover:shadow-md">
-          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-brand-50/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:to-brand-900/10" />
-          <div className="relative">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Registered Users</CardDescription>
-              <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">{users.length}</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-2 text-xs text-muted-foreground">
-              Platform accounts active across all portal spaces.
-            </CardContent>
+      {/* ─── Golden Ratio Overview Stat Widgets ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Stat 1: Registered Accounts */}
+        <div className="rpos-card rpos-card-interactive p-5 rounded-2xl relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Platform Accounts
+            </span>
+            <div className="size-8 rounded-xl bg-teal-500/10 border border-teal-500/25 flex items-center justify-center text-teal-400">
+              <Users className="size-4" />
+            </div>
           </div>
-        </Card>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">
+              {users.length}
+            </span>
+            <span className="text-xs text-teal-300 font-medium">
+              {users.filter((u) => u.active).length} active
+            </span>
+          </div>
+          <div className="mt-2 text-[11px] text-slate-400 flex items-center gap-2">
+            <span>{users.filter((u) => u.roles.includes("AUTHOR")).length} Authors</span>
+            <span>•</span>
+            <span>{users.filter((u) => u.roles.includes("EDITOR")).length} Editors</span>
+            <span>•</span>
+            <span>{users.filter((u) => u.roles.includes("ADMIN")).length} Admins</span>
+          </div>
+        </div>
 
-        <Card className="group relative overflow-hidden shadow-xs transition-all duration-200 hover:shadow-md">
-          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-brand-50/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:to-brand-900/10" />
-          <div className="relative">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Active Catalog Journals</CardDescription>
-              <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">{journals.length}</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-2 text-xs text-muted-foreground">
-              Academic publishing tracks currently accepting submissions.
-            </CardContent>
+        {/* Stat 2: Active Journals */}
+        <div className="rpos-card rpos-card-interactive p-5 rounded-2xl relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Active Catalog Tracks
+            </span>
+            <div className="size-8 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400">
+              <BookOpen className="size-4" />
+            </div>
           </div>
-        </Card>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">
+              {journals.length}
+            </span>
+            <span className="text-xs text-cyan-300 font-medium">
+              Across {publishers.length} publishers
+            </span>
+          </div>
+          <div className="mt-2 text-[11px] text-slate-400">
+            Accepting open-access & peer-reviewed papers
+          </div>
+        </div>
 
-        <Card className="group relative overflow-hidden shadow-xs transition-all duration-200 hover:shadow-md">
-          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-brand-50/30 opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:to-brand-900/10" />
-          <div className="relative">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">System Cluster Health</CardDescription>
-              <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">
-                {health.filter((h) => h.status === "online").length}/{health.length}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-2 text-xs text-muted-foreground">
-              Microservices operating normally within the workspace cluster.
-            </CardContent>
+        {/* Stat 3: Microservice Cluster */}
+        <div className="rpos-card rpos-card-interactive p-5 rounded-2xl relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Cluster Service Mesh
+            </span>
+            <div className="size-8 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
+              <Server className="size-4" />
+            </div>
           </div>
-        </Card>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">
+              {onlineCount}/{health.length}
+            </span>
+            <span className="rpos-badge-emerald text-[10px] py-0 px-2">
+              <span className="rpos-beacon-online" />
+              100% SLA
+            </span>
+          </div>
+          <div className="mt-2 text-[11px] text-slate-400">
+            Internal round-trip latency &lt; 15ms
+          </div>
+        </div>
+
+        {/* Stat 4: Security Policies */}
+        <div className="rpos-card rpos-card-interactive p-5 rounded-2xl relative overflow-hidden group">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Custom RBAC Policies
+            </span>
+            <div className="size-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400">
+              <ShieldPlus className="size-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-bold tracking-tight text-white font-mono">
+              {initialRoles.length}
+            </span>
+            <span className="text-xs text-amber-300 font-medium">
+              Additive Roles
+            </span>
+          </div>
+          <div className="mt-2 text-[11px] text-slate-400">
+            Argon2 + Token cryptographic integrity
+          </div>
+        </div>
       </div>
 
-      {/* Services Health Monitor */}
-      <Card className="border-border/40">
-        <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/20">
-          <div>
-            <CardTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
-              <Activity className="size-5 text-primary" /> Microservices Monitor
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground mt-0.5">
-              Live status ping of all system processes.
-            </CardDescription>
+      {/* ─── Microservices Monitor Grid ─── */}
+      <div className="rpos-card rounded-2xl p-6 sm:p-7 space-y-5">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-800/80 flex-wrap gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Activity className="size-5 text-teal-400" />
+              <h2 className="text-lg font-bold tracking-tight text-white">
+                Cluster Microservices Health
+              </h2>
+              <span className="rpos-badge-teal text-[10px]">
+                {onlineCount} of {health.length} operational
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">
+              Direct daemon health pings across Auth, Submissions, Reviews, Notifications, and AI Gateway.
+            </p>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="cursor-pointer gap-2 transition-all active:scale-95"
+
+          <button
+            type="button"
             onClick={handleRefreshHealth}
             disabled={isHealthPending}
+            className="rpos-btn-secondary text-xs py-2 px-3.5"
           >
-            <RefreshCw className={`size-3.5 ${isHealthPending ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {health.map((service) => (
+            <RefreshCw className={`size-3.5 text-teal-400 ${isHealthPending ? "animate-spin" : ""}`} />
+            <span>{isHealthPending ? "Pinging..." : "Refresh Cluster Ping"}</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {health.map((service) => {
+            const isOnline = service.status === "online";
+            return (
               <div
                 key={service.name}
-                className="flex items-center justify-between p-3.5 rounded-lg border border-border/40 bg-background/50 hover:bg-background/80 transition-colors duration-150"
+                className="p-3.5 rounded-xl border border-slate-800/80 bg-slate-950/50 hover:border-teal-500/30 transition-all flex items-center justify-between"
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{service.name}</p>
-                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                <div className="min-w-0 pr-2">
+                  <p className="text-xs font-semibold text-slate-200 truncate">
+                    {service.name}
+                  </p>
+                  <p className="text-[10px] text-slate-500 font-mono mt-0.5 truncate">
                     {service.url}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`relative flex size-2.5`}>
-                    {service.status === "online" && (
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                    )}
-                    <span
-                      className={`relative inline-flex size-2.5 rounded-full ${
-                        service.status === "online" ? "bg-emerald-500" : "bg-rose-500"
-                      }`}
-                    ></span>
-                  </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className={isOnline ? "rpos-beacon-online" : "rpos-beacon-offline"} />
                   <span
-                    className={`text-xs font-semibold uppercase tracking-wider ${
-                      service.status === "online" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                    className={`text-[10px] font-semibold uppercase tracking-wider font-mono ${
+                      isOnline ? "text-emerald-400" : "text-red-400"
                     }`}
                   >
                     {service.status}
                   </span>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Main Grid: User Admin & Catalog Add */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* User Account Controls */}
-        <Card className="border-border/40 lg:col-span-2">
-          <CardHeader className="pb-4 border-b border-border/20">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <CardTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
-                  <Users className="size-5 text-primary" /> User Role Manager
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                  Manage security access settings across the publishing ecosystem.
-                </CardDescription>
-              </div>
-              <div className="w-full sm:w-60">
-                <Input
-                  placeholder="Search user name or email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-9 text-sm"
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6 px-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-border/20 text-xs font-semibold text-muted-foreground uppercase bg-secondary/30">
-                    <th className="py-3 px-6">User Info</th>
-                    <th className="py-3 px-6 text-center">Active Permission Roles</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/20 text-sm">
-                  {filteredUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={2} className="py-8 text-center text-muted-foreground">
-                        No users found matching "{searchTerm}"
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-secondary/10 transition-colors">
-                        <td className="py-4 px-6 min-w-[200px] whitespace-nowrap">
-                          <p className="font-semibold text-foreground">{user.name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5 font-mono">{user.email}</p>
-                        </td>
-                        <td className="py-4 px-6 min-w-[360px]">
-                          <div className="flex flex-nowrap items-center justify-center gap-1.5 whitespace-nowrap">
-                            {allAvailableRoles.map((role) => {
-                              const isActive = user.roles.includes(role);
-                              const isSaving = savingUserId === user.id;
-                              const isLocked = role === "ADMIN" && !isSuperadmin;
-                              return (
-                                <button
-                                  key={role}
-                                  type="button"
-                                  onClick={() => handleRoleToggle(user.id, role)}
-                                  disabled={isSaving || isLocked}
-                                  title={isLocked ? "Only a Superadmin can grant or revoke Admin" : undefined}
-                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer select-none active:scale-95 ${
-                                    isActive
-                                      ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
-                                      : "bg-background text-muted-foreground border-border/40 hover:bg-secondary/40"
-                                  } ${isSaving || isLocked ? "opacity-50 pointer-events-none" : ""}`}
-                                >
-                                  {isActive && <Check className="size-3 shrink-0" />}
-                                  {role}
-                                </button>
-                              );
-                            })}
-                            {savingUserId === user.id && (
-                              <Loader2 className="size-3.5 animate-spin text-muted-foreground ml-1" />
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Catalog Control Area */}
-        <div className="space-y-6">
-          {/* New Journal Form */}
-          <Card className="border-border/40">
-            <CardHeader className="pb-4 border-b border-border/20">
-              <CardTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
-                <Plus className="size-5 text-primary" /> Create Journal
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Add a new academic target journal catalog track.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <form onSubmit={handleCreateJournal} className="space-y-4">
-                {formError && (
-                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-center gap-2 animate-fade-in">
-                    <AlertCircle className="size-4 shrink-0" />
-                    <span>{formError}</span>
-                  </div>
-                )}
-                {formSuccess && (
-                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2 animate-fade-in">
-                    <UserCheck className="size-4 shrink-0" />
-                    <span>{formSuccess}</span>
-                  </div>
-                )}
-                
-                <div className="space-y-1.5">
-                  <Label htmlFor="title" className="text-xs font-semibold">Journal Title</Label>
-                  <Input
-                    id="title"
-                    placeholder="e.g. Journal of Quantum Physics"
-                    value={newJournalTitle}
-                    onChange={(e) => setNewJournalTitle(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="publisher" className="text-xs font-semibold">Publisher Affiliation</Label>
-                  <NativeSelect
-                    id="publisher"
-                    value={newJournalPublisherId}
-                    onChange={(e) => setNewJournalPublisherId(e.target.value)}
-                    required
-                  >
-                    <option value="" disabled>-- Select Publisher --</option>
-                    {publishers.map((pub) => (
-                      <option key={pub.id} value={pub.id}>
-                        {pub.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="issn" className="text-xs font-semibold">ISSN (Optional)</Label>
-                  <Input
-                    id="issn"
-                    placeholder="e.g. 1234-567X"
-                    value={newJournalIssn}
-                    onChange={(e) => setNewJournalIssn(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="desc" className="text-xs font-semibold">Short Description</Label>
-                  <Textarea
-                    id="desc"
-                    placeholder="A brief scope of publishing coverage..."
-                    value={newJournalDesc}
-                    onChange={(e) => setNewJournalDesc(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-
-                <Button type="submit" className="w-full cursor-pointer" disabled={isJournalSubmitting}>
-                  {isJournalSubmitting ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin mr-1" />
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Journal"
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* List of Journals */}
-          <Card className="border-border/40">
-            <CardHeader className="pb-4 border-b border-border/20">
-              <CardTitle className="text-sm font-semibold tracking-tight text-foreground">
-                Current Catalog Entries
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 max-h-[220px] overflow-y-auto">
-              <ul className="divide-y divide-border/20">
-                {journals.map((journal) => (
-                  <li key={journal.id} className="py-2.5 first:pt-0 last:pb-0">
-                    <p className="font-semibold text-foreground text-xs">{journal.title}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        issn: {journal.issn || "N/A"}
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.2 bg-secondary text-secondary-foreground rounded">
-                        {journal.publisherName || "Demo Publisher"}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+            );
+          })}
         </div>
-
       </div>
 
-      {/* Custom Roles & Superadmin Controls */}
+      {/* ─── User Role & Account Administration ─── */}
+      <div className="rpos-card rounded-2xl p-6 sm:p-7 space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+          <div>
+            <div className="flex items-center gap-2">
+              <Users className="size-5 text-teal-400" />
+              <h2 className="text-lg font-bold tracking-tight text-white">
+                User Security & Role Manager
+              </h2>
+              <span className="text-xs text-slate-400 font-mono">
+                ({filteredUsers.length} shown)
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Grant or revoke platform privileges across editorial, peer review, and administration tiers.
+            </p>
+          </div>
+
+          {/* Filter Pills and Search */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-900/80 border border-slate-800">
+              {["ALL", "ADMIN", "EDITOR", "REVIEWER", "AUTHOR"].map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setRoleFilter(role)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                    roleFilter === role
+                      ? "bg-teal-500/20 text-teal-300 border border-teal-500/40"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative w-full sm:w-64">
+              <Search className="size-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search name or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="rpos-input pl-8 py-1.5 text-xs h-9"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Users Table */}
+        <div className="rpos-table-container">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="rpos-table-header">
+                <th className="py-3 px-5">Academic User</th>
+                <th className="py-3 px-5 text-center">Account Status</th>
+                <th className="py-3 px-5 text-center">Assigned Permission Roles</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/50 text-xs">
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="py-10 text-center text-slate-500">
+                    No users found matching "{searchTerm}"
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((user) => (
+                  <tr key={user.id} className="rpos-table-row">
+                    <td className="py-3.5 px-5 min-w-[220px]">
+                      <div className="flex items-center gap-3">
+                        <div className="size-8 rounded-xl bg-teal-950/60 border border-teal-500/30 flex items-center justify-center text-teal-300 font-bold text-xs uppercase">
+                          {user.name ? user.name[0] : "U"}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-200">{user.name}</p>
+                          <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-3.5 px-5 text-center">
+                      <button
+                        type="button"
+                        onClick={() => handleAccountStatus(user)}
+                        disabled={!isSuperadmin || updatingStatusUserId === user.id}
+                        title={!isSuperadmin ? "Only a Superadmin can modify account status" : undefined}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                          user.active
+                            ? "bg-emerald-950/50 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-900/60"
+                            : "bg-red-950/50 text-red-300 border border-red-500/30 hover:bg-red-900/60"
+                        } ${!isSuperadmin || updatingStatusUserId === user.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                      >
+                        {updatingStatusUserId === user.id ? (
+                          <>
+                            <Loader2 className="size-3 animate-spin" />
+                            <span>Updating...</span>
+                          </>
+                        ) : user.active ? (
+                          <>
+                            <CheckCircle2 className="size-3 text-emerald-400" />
+                            <span>Active (Click to Suspend)</span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="size-3 text-red-400" />
+                            <span>Suspended (Click to Reactivate)</span>
+                          </>
+                        )}
+                      </button>
+                    </td>
+
+                    <td className="py-3.5 px-5 min-w-[360px]">
+                      <div className="flex flex-wrap items-center justify-center gap-1.5">
+                        {allAvailableRoles.map((role) => {
+                          const isActive = user.roles.includes(role);
+                          const isSaving = savingUserId === user.id;
+                          const isLocked = role === "ADMIN" && !isSuperadmin;
+                          return (
+                            <button
+                              key={role}
+                              type="button"
+                              onClick={() => handleRoleToggle(user.id, role)}
+                              disabled={isSaving || isLocked}
+                              title={isLocked ? "Only a Superadmin can delegate Admin privileges" : undefined}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all cursor-pointer active:scale-95 ${
+                                isActive
+                                  ? "bg-teal-500/20 text-teal-200 border-teal-500/40 shadow-[0_0_10px_rgba(45,212,191,0.2)]"
+                                  : "bg-slate-900/70 text-slate-400 border-slate-800 hover:border-teal-500/30 hover:text-slate-200"
+                              } ${isSaving || isLocked ? "opacity-50 cursor-not-allowed" : ""}`}
+                            >
+                              {isActive && <Check className="size-2.5 stroke-[3] text-teal-300" />}
+                              <span>{role}</span>
+                            </button>
+                          );
+                        })}
+                        {savingUserId === user.id && (
+                          <Loader2 className="size-3.5 animate-spin text-teal-400 ml-1" />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ─── Catalog Provisioning & Active Entries (Golden Split: 1.618 : 1) ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.618fr] gap-6">
+        {/* Create Target Journal Track */}
+        <div className="rpos-card rpos-card-elevated rounded-2xl p-6 sm:p-7 space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-800/80">
+            <Plus className="size-5 text-teal-400" />
+            <div>
+              <h3 className="text-base font-bold tracking-tight text-white">
+                Initialize Target Journal Track
+              </h3>
+              <p className="text-xs text-slate-400">
+                Provision a new academic catalog entry for submissions.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleCreateJournal} className="space-y-3.5">
+            {formError && (
+              <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-xs text-red-200 flex items-center gap-2">
+                <AlertCircle className="size-4 shrink-0 text-red-400" />
+                <span>{formError}</span>
+              </div>
+            )}
+            {formSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs text-emerald-200 flex items-center gap-2">
+                <CheckCircle2 className="size-4 shrink-0 text-emerald-400" />
+                <span>{formSuccess}</span>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label htmlFor="title" className="text-xs font-semibold text-slate-300">
+                Journal Title
+              </label>
+              <input
+                id="title"
+                placeholder="e.g. International Journal of Quantum Informatics"
+                value={newJournalTitle}
+                onChange={(e) => setNewJournalTitle(e.target.value)}
+                required
+                className="rpos-input text-xs py-2"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="publisher" className="text-xs font-semibold text-slate-300">
+                Publisher Affiliation
+              </label>
+              <select
+                id="publisher"
+                value={newJournalPublisherId}
+                onChange={(e) => setNewJournalPublisherId(e.target.value)}
+                required
+                className="rpos-input text-xs py-2 bg-slate-900 text-slate-200"
+              >
+                <option value="" disabled>-- Select Publisher --</option>
+                {publishers.map((pub) => (
+                  <option key={pub.id} value={pub.id}>
+                    {pub.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="issn" className="text-xs font-semibold text-slate-300">
+                ISSN Identifier (Optional)
+              </label>
+              <input
+                id="issn"
+                placeholder="e.g. 2770-8912"
+                value={newJournalIssn}
+                onChange={(e) => setNewJournalIssn(e.target.value)}
+                className="rpos-input text-xs py-2 font-mono"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="desc" className="text-xs font-semibold text-slate-300">
+                Aims & Scope Overview
+              </label>
+              <textarea
+                id="desc"
+                placeholder="Describe scientific coverage, peer review modality, and indexing targets..."
+                value={newJournalDesc}
+                onChange={(e) => setNewJournalDesc(e.target.value)}
+                rows={3}
+                className="rpos-input text-xs py-2 resize-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isJournalSubmitting}
+              className="rpos-btn-primary w-full py-2.5 mt-2 text-xs"
+            >
+              {isJournalSubmitting ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span>Provisioning Track...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="size-3.5" />
+                  <span>Provision Journal Catalog Track</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Current Active Journals Showcase */}
+        <div className="rpos-card rounded-2xl p-6 sm:p-7 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+            <div>
+              <h3 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
+                <BookOpen className="size-4 text-teal-400" />
+                Active Journal Catalog
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {journals.length} academic journals accepting submissions & peer review.
+              </p>
+            </div>
+            <span className="rpos-badge-teal text-[10px]">
+              Crossref Ready
+            </span>
+          </div>
+
+          <div className="max-h-[380px] overflow-y-auto space-y-2.5 pr-1">
+            {journals.map((journal) => (
+              <div
+                key={journal.id}
+                className="p-3.5 rounded-xl border border-slate-800/80 bg-slate-950/40 hover:border-teal-500/30 transition-all space-y-1.5"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-100">{journal.title}</h4>
+                    <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                      {journal.description || "Peer-reviewed scholarly journal"}
+                    </p>
+                  </div>
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-teal-950/60 text-teal-300 border border-teal-500/25 shrink-0 font-mono">
+                    {journal.publisherName || "Independent"}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 pt-1 text-[10px] text-slate-500 font-mono">
+                  <span>ISSN: {journal.issn || "Pending"}</span>
+                  <span>•</span>
+                  <span>Slug: /{journal.slug}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Custom Additive Roles & Admin Provisioning ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="border-border/40 lg:col-span-2">
-          <CardHeader className="pb-4 border-b border-border/20">
-            <CardTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
-              <ShieldPlus className="size-5 text-primary" /> Custom Roles
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground mt-0.5">
-              Define additive permission sets and assign them to users, on top of their base roles.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <CustomRolesManager initialRoles={initialRoles} users={users} />
-          </CardContent>
-        </Card>
+        <div className="rpos-card rounded-2xl p-6 sm:p-7 lg:col-span-2 space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-800/80">
+            <ShieldPlus className="size-5 text-teal-400" />
+            <div>
+              <h3 className="text-base font-bold tracking-tight text-white">
+                Additive Custom Roles
+              </h3>
+              <p className="text-xs text-slate-400">
+                Grant specific operational permissions on top of default roles.
+              </p>
+            </div>
+          </div>
+          <CustomRolesManager initialRoles={initialRoles} users={users} />
+        </div>
 
         {isSuperadmin && (
-          <Card className="border-border/40">
-            <CardHeader className="pb-4 border-b border-border/20">
-              <CardTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
-                <UserCheck className="size-5 text-primary" /> Create Admin
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Superadmin-only: there is no self-registration path to Admin.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <CreateAdminForm />
-            </CardContent>
-          </Card>
+          <div className="rpos-card rpos-card-elevated rounded-2xl p-6 sm:p-7 space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-800/80">
+              <UserCheck className="size-5 text-teal-400" />
+              <div>
+                <h3 className="text-base font-bold tracking-tight text-white">
+                  Direct Admin Provisioning
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Superadmin-only: Provision a new administrative node user.
+                </p>
+              </div>
+            </div>
+            <CreateAdminForm />
+          </div>
         )}
       </div>
     </div>

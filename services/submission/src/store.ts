@@ -60,10 +60,10 @@ export interface SubmissionStore {
   /** The userId that owns the publisher behind this journal, if any (for notifying them). */
   findJournalOwnerId(journalId: string): Promise<string | null>;
   /** Whether the given user is an EDITOR member of the publisher behind this journal (tenant-scoped staff access). */
-  isPublisherEditorMember(journalId: string, userId: string): Promise<boolean>;
+  isJournalEditor(journalId: string, userId: string): Promise<boolean>;
   /** Submissions under any journal whose publisher has this user as an EDITOR member. */
   listByEditorMembership(userId: string): Promise<StoredSubmission[]>;
-  /** userIds of every EDITOR member of the publisher behind this journal (for scoped notification). */
+  /** userIds of the editors assigned to this journal (for scoped notification). */
   listEditorMemberIds(journalId: string): Promise<string[]>;
   /** Resolves an x-api-key header value to the publisher it authenticates, if enabled. */
   resolveApiKey(key: string): Promise<ApiKeyLookup | null>;
@@ -78,7 +78,7 @@ export class InMemorySubmissionStore implements SubmissionStore {
   private readonly journalOwners = new Map<string, string>();
   private readonly journalPublishers = new Map<string, string>();
   private readonly apiKeys = new Map<string, { apiKeyId: string; publisherId: string; enabled: boolean }>();
-  private readonly editorMembers = new Map<string, Set<string>>(); // publisherId -> userIds
+  private readonly editorMembers = new Map<string, Set<string>>(); // journalId -> userIds
   private readonly workflowRules = new Map<string, Partial<Record<SubmissionAction, UserRole[]>>>(); // publisherId -> rules
 
   addReviewAssignment(submissionId: string, reviewerId: string): void {
@@ -104,11 +104,11 @@ export class InMemorySubmissionStore implements SubmissionStore {
     this.apiKeys.set(key, { apiKeyId: `key-${key}`, publisherId, enabled });
   }
 
-  /** Test helper mirroring a PublisherMember(role: EDITOR) row. */
-  addEditorMember(publisherId: string, userId: string): void {
-    const set = this.editorMembers.get(publisherId) ?? new Set<string>();
+  /** Test helper mirroring a JournalEditorAssignment row. */
+  assignJournalEditor(journalId: string, userId: string): void {
+    const set = this.editorMembers.get(journalId) ?? new Set<string>();
     set.add(userId);
-    this.editorMembers.set(publisherId, set);
+    this.editorMembers.set(journalId, set);
   }
 
   /** Test helper mirroring a WorkflowActionRule row. */
@@ -134,10 +134,8 @@ export class InMemorySubmissionStore implements SubmissionStore {
     return this.journalOwners.get(journalId) ?? null;
   }
 
-  async isPublisherEditorMember(journalId: string, userId: string): Promise<boolean> {
-    const publisherId = this.journalPublishers.get(journalId);
-    if (!publisherId) return false;
-    return this.editorMembers.get(publisherId)?.has(userId) ?? false;
+  async isJournalEditor(journalId: string, userId: string): Promise<boolean> {
+    return this.editorMembers.get(journalId)?.has(userId) ?? false;
   }
 
   async listByEditorMembership(userId: string): Promise<StoredSubmission[]> {
@@ -145,15 +143,12 @@ export class InMemorySubmissionStore implements SubmissionStore {
       [...this.editorMembers.entries()].filter(([, users]) => users.has(userId)).map(([id]) => id),
     );
     return [...this.byId.values()].filter((submission) => {
-      const publisherId = this.journalPublishers.get(submission.journalId);
-      return publisherId !== undefined && memberPublisherIds.has(publisherId);
+      return memberPublisherIds.has(submission.journalId);
     });
   }
 
   async listEditorMemberIds(journalId: string): Promise<string[]> {
-    const publisherId = this.journalPublishers.get(journalId);
-    if (!publisherId) return [];
-    return [...(this.editorMembers.get(publisherId) ?? [])];
+    return [...(this.editorMembers.get(journalId) ?? [])];
   }
 
   async listByJournalOwner(ownerId: string): Promise<StoredSubmission[]> {

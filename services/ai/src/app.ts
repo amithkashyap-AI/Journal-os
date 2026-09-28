@@ -1,3 +1,5 @@
+import { z } from "zod";
+import type { JournalSearch } from "./journal-search.js";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import fastifyJwt from "@fastify/jwt";
 import { askAiSchema, executiveSummarySchema, suggestKeywordsSchema, tightenAbstractSchema } from "@rpos/validation";
@@ -21,6 +23,7 @@ export interface AppOptions {
   ai: AiClient;
   jwtSecret: string;
   logger?: boolean;
+  journalSearch?: Pick<JournalSearch, "search">;
 }
 
 function isAdmin(roles: readonly string[]): boolean {
@@ -143,6 +146,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
       }
       throw error;
     }
+  });
+
+  app.post("/v1/ai/journal-search", { onRequest: [app.authenticate] }, async (request, reply) => {
+    const parsed = z.object({topic: z.string().trim().min(10).max(2000)}).safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({error: "VALIDATION_ERROR"});
+    if (!options.journalSearch) return reply.code(503).send({error: "SEARCH_UNAVAILABLE"});
+    try { return await options.journalSearch.search(parsed.data.topic); }
+    catch { return reply.code(503).send({error: "SEARCH_UNAVAILABLE"}); }
   });
 
   return app;

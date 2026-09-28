@@ -86,7 +86,31 @@ export interface StoredWorkflowRule {
   updatedAt: Date;
 }
 
+export interface JournalEditor { userId: string; name: string; email: string }
+export interface IndexingEvidence {
+  journalId: string; source: string; status: string; sourceUrl: string;
+  quartile?: string | null; indexYear?: number | null; subjectCategory?: string | null;
+  coverageStartYear?: number | null; coverageEndYear?: number | null;
+  checkedAt: Date; notes: string; verifiedBy: string; updatedAt: Date;
+}
+export interface PublicationProfile {
+  journalId: string; categories: string[]; feeModel: string; accessModel: string;
+  publicationWeeks: number | null; sourceUrl: string; checkedAt: Date; notes: string; verifiedBy: string;
+}
+export interface JournalAssessment {
+  journalId: string; text: string; model: string; evidenceHash: string; generatedAt: Date;
+}
 export interface JournalStore {
+  getPublicationProfile(journalId: string): Promise<PublicationProfile | null>;
+  savePublicationProfile(data: PublicationProfile): Promise<void>;
+  isJournalEditor(journalId: string, userId: string): Promise<boolean>;
+  listEditors(journalId: string): Promise<JournalEditor[]>;
+  assignEditor(journalId: string, userId: string): Promise<void>;
+  removeEditor(journalId: string, userId: string): Promise<void>;
+  listEvidence(journalId: string): Promise<IndexingEvidence[]>;
+  saveEvidence(data: Omit<IndexingEvidence, "updatedAt">): Promise<void>;
+  getAssessment(journalId: string): Promise<JournalAssessment | null>;
+  saveAssessment(data: JournalAssessment): Promise<void>;
   listJournals(): Promise<JournalWithPublisher[]>;
   findJournalById(id: string): Promise<JournalWithPublisher | null>;
   findJournalBySlug(slug: string): Promise<StoredJournal | null>;
@@ -124,6 +148,36 @@ export interface JournalStore {
 }
 
 export class InMemoryJournalStore implements JournalStore {
+  private readonly profiles = new Map<string, PublicationProfile>();
+  async getPublicationProfile(id: string): Promise<PublicationProfile | null> { return this.profiles.get(id) ?? null; }
+  async savePublicationProfile(data: PublicationProfile): Promise<void> { this.profiles.set(data.journalId, data); }
+  private readonly assignments = new Map<string, Set<string>>();
+  private readonly evidence = new Map<string, IndexingEvidence>();
+  private readonly assessments = new Map<string, JournalAssessment>();
+  async isJournalEditor(journalId: string, userId: string): Promise<boolean> {
+    return this.assignments.get(journalId)?.has(userId) ?? false;
+  }
+  async listEditors(journalId: string): Promise<JournalEditor[]> {
+    return [...(this.assignments.get(journalId) ?? [])].map(userId => {
+      const user = this.users.get(userId)!;
+      return { userId, name: user.name, email: user.email };
+    });
+  }
+  async assignEditor(journalId: string, userId: string): Promise<void> {
+    const ids = this.assignments.get(journalId) ?? new Set<string>();
+    ids.add(userId); this.assignments.set(journalId, ids);
+  }
+  async removeEditor(journalId: string, userId: string): Promise<void> {
+    this.assignments.get(journalId)?.delete(userId);
+  }
+  async listEvidence(journalId: string): Promise<IndexingEvidence[]> {
+    return [...this.evidence.values()].filter(e => e.journalId === journalId).sort((a,b) => a.source.localeCompare(b.source));
+  }
+  async saveEvidence(data: Omit<IndexingEvidence, "updatedAt">): Promise<void> {
+    this.evidence.set(`${data.journalId}:${data.source}`, {...data, updatedAt: new Date()});
+  }
+  async getAssessment(journalId: string): Promise<JournalAssessment | null> { return this.assessments.get(journalId) ?? null; }
+  async saveAssessment(data: JournalAssessment): Promise<void> { this.assessments.set(data.journalId, data); }
   private readonly journals = new Map<string, StoredJournal>();
   private readonly publishers = new Map<string, StoredPublisher>();
   private readonly apiKeys = new Map<string, StoredApiKey>(); // keyed by publisherId

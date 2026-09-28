@@ -39,11 +39,6 @@ function isAdmin(user: JwtPayload): boolean {
   return hasAnyRole(user, "ADMIN", "SUPERADMIN");
 }
 
-/** Additive custom-role permission check — never replaces a role check, only widens it. */
-function hasPermission(user: JwtPayload, key: string): boolean {
-  return user.permissions?.includes(key) ?? false;
-}
-
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
   const { reviews } = options;
@@ -54,7 +49,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   async function canEditorAccessReview(review: StoredReview, user: JwtPayload): Promise<boolean> {
     if (!hasAnyRole(user, "EDITOR")) return false;
     const submission = await reviews.findSubmission(review.submissionId);
-    return submission !== null && (await reviews.isPublisherEditorMember(submission.journalId, user.sub));
+    return submission !== null && (await reviews.isJournalEditor(submission.journalId, user.sub));
   }
 
   app.register(fastifyJwt, { secret: options.jwtSecret });
@@ -90,15 +85,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
         return reply.code(404).send({ error: "SUBMISSION_NOT_FOUND" });
       }
 
-      // The assigner must be an editor member of THIS journal's publisher,
-      // not merely hold the EDITOR role anywhere — unless they hold the
-      // reviews.assign custom-role permission, which is a deliberate global
-      // grant (not itself tenant-scoped in this first slice).
+      // Only the owner/admin or an explicitly assigned journal editor may assign reviews.
       const canAssign =
         isAdmin(request.user) ||
-        hasPermission(request.user, "reviews.assign") ||
         (hasAnyRole(request.user, "EDITOR") &&
-          (await reviews.isPublisherEditorMember(submission.journalId, request.user.sub)));
+          (await reviews.isJournalEditor(submission.journalId, request.user.sub)));
       if (!canAssign) {
         return reply.code(403).send({ error: "FORBIDDEN" });
       }
@@ -170,8 +161,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         review !== null &&
         (review.reviewerId === request.user.sub ||
           isAdmin(request.user) ||
-          hasPermission(request.user, "reviews.assign") ||
-          (await canEditorAccessReview(review, request.user)));
+            (await canEditorAccessReview(review, request.user)));
       if (!review || !canRead) {
         return reply.code(404).send({ error: "NOT_FOUND" });
       }
@@ -188,8 +178,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         review !== null &&
         (review.reviewerId === request.user.sub ||
           isAdmin(request.user) ||
-          hasPermission(request.user, "reviews.assign") ||
-          (await canEditorAccessReview(review, request.user)));
+            (await canEditorAccessReview(review, request.user)));
       if (!review || !canRead) {
         return reply.code(404).send({ error: "NOT_FOUND" });
       }

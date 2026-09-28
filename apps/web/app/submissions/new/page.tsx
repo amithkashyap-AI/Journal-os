@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, PageHeader }
 import { getToken } from "../../../lib/api";
 import { fetchJournals } from "../../../lib/catalog";
 
-export default async function NewSubmissionPage() {
+export default async function NewSubmissionPage({ searchParams }: { searchParams: Promise<{journalId?: string}> }) {
+  const { journalId } = await searchParams;
   const token = await getToken();
-  if (!token) redirect("/login");
+  if (!token) redirect(journalId ? `/register?next=${encodeURIComponent(`/submissions/new?journalId=${encodeURIComponent(journalId)}`)}` : "/login");
 
   const journals = await fetchJournals();
 
@@ -26,6 +27,7 @@ export default async function NewSubmissionPage() {
         </CardHeader>
         <CardContent>
           <SubmissionForm
+            selectedJournalId={journalId}
             journals={journals.map(({ id, title, publisherName }) => ({
               id,
               title,

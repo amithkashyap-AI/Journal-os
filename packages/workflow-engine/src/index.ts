@@ -87,7 +87,7 @@ export function applyTransition(
   }
   const allowedRoles = roleOverride
     ? [...new Set([...roleOverride, "ADMIN" as const, "SUPERADMIN" as const])]
-    : rule.roles;
+    : [...rule.roles, "SUPERADMIN" as const];
   if (!actorRoles.some((role) => allowedRoles.includes(role))) {
     return { ok: false, reason: "FORBIDDEN" };
   }

@@ -1,3 +1,4 @@
+import { JournalSearch } from "./journal-search.js";
 import { z } from "zod";
 import { baseEnvSchema, loadEnv } from "@rpos/config";
 import { findFreePort } from "@rpos/utils";
@@ -9,7 +10,8 @@ const env = loadEnv(
     AI_PORT: z.coerce.number().int().positive().optional(),
     JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
     OLLAMA_BASE_URL: z.string().url().default("http://localhost:11434"),
-    OLLAMA_MODEL: z.string().min(1).default("qwen"),
+    OLLAMA_EMBEDDING_MODEL: z.string().min(1).default("nomic-embed-text"),
+    OLLAMA_MODEL: z.string().min(1).default("llama3.2:3b"),
   }),
 );
 
@@ -17,6 +19,7 @@ const ai = new OllamaAiClient(env.OLLAMA_BASE_URL, env.OLLAMA_MODEL);
 
 const app = buildApp({
   ai,
+  journalSearch: new JournalSearch(env.OLLAMA_BASE_URL, env.OLLAMA_EMBEDDING_MODEL),
   jwtSecret: env.JWT_SECRET,
   logger: true,
 });

@@ -7,7 +7,7 @@ import { StatusBadge } from "../../../components/StatusBadge";
 import { AssignReviewerForm } from "../../../components/forms/assign-reviewer-form";
 import { ManuscriptUpload } from "../../../components/forms/manuscript-upload";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageHeader, Timeline } from "@rpos/ui";
-import { apiFetch, AUTH_API, getToken, REVIEW_API, SUBMISSION_API } from "../../../lib/api";
+import { apiFetch, AUTH_API, getAuthenticatedUser, REVIEW_API, SUBMISSION_API } from "../../../lib/api";
 import type { ReviewDto, SubmissionDto } from "../../../lib/dto";
 import { performSubmissionAction } from "../../../lib/submission-actions";
 
@@ -28,18 +28,13 @@ export default async function SubmissionPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const token = await getToken();
-  if (!token) redirect("/login");
+  const user = await getAuthenticatedUser();
+  if (!user) redirect("/login");
 
   const { id } = await params;
-  const [meRes, subRes] = await Promise.all([
-    apiFetch(AUTH_API, "/v1/auth/me"),
-    apiFetch(SUBMISSION_API, `/v1/submissions/${id}`),
-  ]);
-  if (meRes.status === 401 || subRes.status === 401) redirect("/login");
+  const subRes = await apiFetch(SUBMISSION_API, `/v1/submissions/${id}`);
+  if (subRes.status === 401) redirect("/login");
   if (subRes.status === 404) notFound();
-
-  const { user } = (await meRes.json()) as { user: PublicUser };
   const { submission, allowedActions } = (await subRes.json()) as {
     submission: SubmissionDto;
     allowedActions: SubmissionAction[];

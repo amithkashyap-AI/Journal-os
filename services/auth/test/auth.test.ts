@@ -37,6 +37,7 @@ describe("auth service", () => {
     expect(user).toMatchObject({
       email: CREDENTIALS.email,
       name: CREDENTIALS.name,
+      active: true,
       roles: ["AUTHOR"],
     });
     expect(user.passwordHash).toBeUndefined();
@@ -89,6 +90,40 @@ describe("auth service", () => {
     });
     expect(res.statusCode).toBe(401);
     expect(res.json().error).toBe("INVALID_CREDENTIALS");
+  });
+
+  it("prevents a suspended account from signing in", async () => {
+    await register();
+    const user = await store.findByEmail(CREDENTIALS.email);
+    await store.updateActive(user!.id, false);
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/auth/login",
+      payload: CREDENTIALS,
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().error).toBe("INVALID_CREDENTIALS");
+  });
+
+  it("allows a Superadmin to suspend an account but not itself", async () => {
+    const target = await store.create({ ...CREDENTIALS, passwordHash: "irrelevant", roles: ["AUTHOR"] });
+    const owner = await store.create({ email: "owner@example.com", name: "Owner", passwordHash: "irrelevant", roles: ["SUPERADMIN"] });
+    const token = app.jwt.sign({ sub: owner.id, email: owner.email, roles: owner.roles });
+    const suspended = await app.inject({
+      method: "PUT",
+      url: `/v1/users/${target.id}/active`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: { active: false },
+    });
+    expect(suspended.statusCode).toBe(200);
+    expect(suspended.json().user.active).toBe(false);
+    const self = await app.inject({
+      method: "PUT",
+      url: `/v1/users/${owner.id}/active`,
+      headers: { authorization: `Bearer ${token}` },
+      payload: { active: false },
+    });
+    expect(self.statusCode).toBe(409);
   });
 
   it("rejects /me without a token", async () => {

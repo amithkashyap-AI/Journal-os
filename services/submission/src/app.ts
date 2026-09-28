@@ -49,11 +49,6 @@ function isAdmin(user: JwtPayload): boolean {
   return hasAnyRole(user, "ADMIN", "SUPERADMIN");
 }
 
-/** Additive custom-role permission check — never replaces a role check, only widens it. */
-function hasPermission(user: JwtPayload, key: string): boolean {
-  return user.permissions?.includes(key) ?? false;
-}
-
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
   const { submissions } = options;
@@ -77,7 +72,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   }));
 
   app.post("/v1/submissions", { onRequest: [app.authenticate] }, async (request, reply) => {
-    if (!hasAnyRole(request.user, "AUTHOR", "ADMIN")) {
+    if (!hasAnyRole(request.user, "AUTHOR", "EDITOR", "ADMIN", "SUPERADMIN")) {
       return reply.code(403).send({ error: "FORBIDDEN" });
     }
 
@@ -132,9 +127,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
         submission !== null &&
         (submission.authorId === request.user.sub ||
           isAdmin(request.user) ||
-          hasPermission(request.user, "submissions.editorial") ||
           (hasAnyRole(request.user, "EDITOR") &&
-            (await submissions.isPublisherEditorMember(submission.journalId, request.user.sub))) ||
+            (await submissions.isJournalEditor(submission.journalId, request.user.sub))) ||
           (await submissions.isAssignedReviewer(submission.id, request.user.sub)) ||
           (hasAnyRole(request.user, "PUBLISHER") &&
             (await submissions.isJournalOwner(submission.journalId, request.user.sub))));
@@ -193,36 +187,24 @@ export function buildApp(options: AppOptions): FastifyInstance {
       }
 
       const submission = await submissions.findById(request.params.id);
-      const hasEditorialPermission = hasPermission(request.user, "submissions.editorial");
       const canAct =
         submission !== null &&
         (submission.authorId === request.user.sub ||
           isAdmin(request.user) ||
-          hasEditorialPermission ||
           (hasAnyRole(request.user, "EDITOR") &&
-            (await submissions.isPublisherEditorMember(submission.journalId, request.user.sub))) ||
+            (await submissions.isJournalEditor(submission.journalId, request.user.sub))) ||
           (hasAnyRole(request.user, "PUBLISHER") &&
             (await submissions.isJournalOwner(submission.journalId, request.user.sub))));
       if (!submission || !canAct) {
         return reply.code(404).send({ error: "NOT_FOUND" });
       }
 
-      // canAct only grants visibility; applyTransition still enforces which
-      // specific actions each role may perform (e.g. a publisher may only
-      // ever reach "publish" here — every other action's role list excludes
-      // PUBLISHER). The workflow engine is keyed to the fixed UserRole enum
-      // and knows nothing about custom-role permissions, so a user whose
-      // *only* editorial authority is the `submissions.editorial` permission
-      // is granted an effective EDITOR role for this one check — the
-      // permission is meant to unlock exactly the same actions EDITOR does.
-      const effectiveRoles = hasEditorialPermission
-        ? [...request.user.roles, "EDITOR" as const]
-        : request.user.roles;
+      // Resource access is journal-scoped; the engine also checks action roles.
       const rules = await submissions.getWorkflowActionRules(submission.journalId);
       const result = applyTransition(
         submission.status,
         parsed.data.action,
-        effectiveRoles,
+        request.user.roles,
         rules[parsed.data.action],
       );
       if (!result.ok) {

@@ -8,6 +8,15 @@ const nextConfig: NextConfig = {
     "@rpos/design-system",
     "@rpos/ui",
   ],
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "echarts",
+      "echarts-for-react",
+      "@tanstack/react-table",
+      "@tanstack/react-query",
+    ],
+  },
 };
 
 export default nextConfig;

@@ -14,10 +14,14 @@ interface NotificationItem {
 }
 
 async function fetchNotifications(): Promise<NotificationItem[]> {
-  const res = await fetch("/api/notifications");
-  if (!res.ok) throw new Error("Failed to load notifications");
-  const body = (await res.json()) as { notifications: NotificationItem[] };
-  return body.notifications;
+  try {
+    const res = await fetch("/api/notifications");
+    if (!res.ok) return [];
+    const body = (await res.json()) as { notifications: NotificationItem[] };
+    return body.notifications || [];
+  } catch {
+    return [];
+  }
 }
 
 export function NotificationBell() {
@@ -28,7 +32,10 @@ export function NotificationBell() {
   const { data: notifications = [] } = useQuery({
     queryKey: ["notifications"],
     queryFn: fetchNotifications,
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
+    staleTime: 45_000,
+    retry: 1,
   });
   const unread = notifications.filter((notification) => !notification.readAt);
 

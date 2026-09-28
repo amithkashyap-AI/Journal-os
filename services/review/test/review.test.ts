@@ -29,7 +29,7 @@ describe("review service", () => {
     // EDITOR member and reviewer-1/reviewer-2 are REVIEWER members — mirrors
     // the real world where assignment is scoped to a publisher's own staff.
     store.setJournalPublisher("journal-1", "pub-tenant-1");
-    store.addEditorMember("pub-tenant-1", "editor-1");
+    store.assignJournalEditor("journal-1", "editor-1");
     store.addReviewerMember("pub-tenant-1", "reviewer-1");
     store.addReviewerMember("pub-tenant-1", "reviewer-2");
   });
@@ -201,7 +201,7 @@ describe("review service", () => {
     // A second, entirely separate tenant with its own editor and reviewer.
     store.addSubmission({ id: "sub-2", journalId: "journal-2", status: "UNDER_REVIEW", title: "Paper Two" });
     store.setJournalPublisher("journal-2", "pub-tenant-2");
-    store.addEditorMember("pub-tenant-2", "editor-2");
+    store.assignJournalEditor("journal-2", "editor-2");
     store.addReviewerMember("pub-tenant-2", "reviewer-2b");
 
     // editor-2 (tenant B) cannot assign a reviewer on tenant A's submission.
@@ -240,7 +240,7 @@ describe("review service", () => {
     expect(res.json().error).toBe("VALIDATION_ERROR");
   });
 
-  it("lets a user with only the reviews.assign permission (no EDITOR role) assign a reviewer", async () => {
+  it("does not let a custom permission bypass journal assignment", async () => {
     const token = app.jwt.sign({
       sub: "perm-user",
       email: "perm-user@example.com",
@@ -253,6 +253,6 @@ describe("review service", () => {
       headers: { authorization: `Bearer ${token}` },
       payload: { reviewerId: "reviewer-1" },
     });
-    expect(res.statusCode).toBe(201);
+    expect(res.statusCode).toBe(403);
   });
 });

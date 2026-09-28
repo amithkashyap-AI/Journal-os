@@ -4,6 +4,9 @@ import type { CreateFileData, FileStore, StoredFile } from "./store.js";
 export class PrismaFileStore implements FileStore {
   private readonly db = getPrisma();
 
+  async isJournalEditor(fileId: string, userId: string): Promise<boolean> {
+    return !!await this.db.submission.findFirst({where: {manuscriptUrl: `/v1/files/${fileId}`, journal: {editors: {some: {userId}}}}, select: {id: true}});
+  }
   async create(data: CreateFileData): Promise<StoredFile> {
     return this.db.fileObject.create({ data });
   }

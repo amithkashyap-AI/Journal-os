@@ -36,6 +36,7 @@ export interface PublicUser {
   id: string;
   email: string;
   name: string;
+  active: boolean;
   roles: UserRole[];
   /** Flattened permission keys from any custom roles assigned to this user (additive to `roles`). */
   permissions?: string[];

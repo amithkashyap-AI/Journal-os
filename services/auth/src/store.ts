@@ -6,6 +6,7 @@ export interface StoredUser {
   email: string;
   name: string;
   passwordHash: string;
+  active: boolean;
   roles: UserRole[];
 }
 
@@ -38,8 +39,9 @@ export interface UserStore {
   findById(id: string): Promise<StoredUser | null>;
   listByRole(role: UserRole): Promise<StoredUser[]>;
   listAll(): Promise<StoredUser[]>;
-  create(input: Omit<StoredUser, "id">): Promise<StoredUser>;
+  create(input: Omit<StoredUser, "id" | "active"> & { active?: boolean }): Promise<StoredUser>;
   updateRoles(id: string, roles: UserRole[]): Promise<StoredUser>;
+  updateActive(id: string, active: boolean): Promise<StoredUser>;
 
   /** Custom roles only (isSystem=false) — the ones an Admin can manage. */
   listCustomRoles(): Promise<StoredRole[]>;
@@ -79,8 +81,8 @@ export class InMemoryUserStore implements UserStore {
     return [...this.byId.values()];
   }
 
-  async create(input: Omit<StoredUser, "id">): Promise<StoredUser> {
-    const user: StoredUser = { id: randomUUID(), ...input };
+  async create(input: Omit<StoredUser, "id" | "active"> & { active?: boolean }): Promise<StoredUser> {
+    const user: StoredUser = { id: randomUUID(), active: input.active ?? true, ...input };
     this.byId.set(user.id, user);
     return user;
   }
@@ -89,6 +91,14 @@ export class InMemoryUserStore implements UserStore {
     const user = this.byId.get(id);
     if (!user) throw new Error("User not found");
     const updated = { ...user, roles };
+    this.byId.set(id, updated);
+    return updated;
+  }
+
+  async updateActive(id: string, active: boolean): Promise<StoredUser> {
+    const user = this.byId.get(id);
+    if (!user) throw new Error("User not found");
+    const updated = { ...user, active };
     this.byId.set(id, updated);
     return updated;
   }
@@ -164,4 +174,3 @@ export class InMemoryUserStore implements UserStore {
     this.roles.set(role.id, role);
   }
 }
-

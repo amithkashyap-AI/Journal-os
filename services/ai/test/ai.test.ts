@@ -51,6 +51,15 @@ describe("ai service", () => {
     return { authorization: `Bearer ${token}` };
   }
 
+  it("protects journal search and validates input", async () => {
+    const unauth = await app.inject({method:"POST",url:"/v1/ai/journal-search",payload:{topic:"network security"}});
+    expect(unauth.statusCode).toBe(401);
+    const invalid = await app.inject({method:"POST",url:"/v1/ai/journal-search",headers:authHeader(),payload:{topic:"x"}});
+    expect(invalid.statusCode).toBe(400);
+    const absent = await app.inject({method:"POST",url:"/v1/ai/journal-search",headers:authHeader(),payload:{topic:"network security"}});
+    expect(absent.statusCode).toBe(503);
+  });
+
   it("reports healthy", async () => {
     const res = await app.inject({ method: "GET", url: "/health" });
     expect(res.statusCode).toBe(200);

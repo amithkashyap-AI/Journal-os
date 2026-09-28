@@ -24,7 +24,7 @@ export interface JournalOption {
   publisherName?: string;
 }
 
-export function SubmissionForm({ journals }: { journals: JournalOption[] }) {
+export function SubmissionForm({ journals, selectedJournalId }: { journals: JournalOption[]; selectedJournalId?: string }) {
   const [serverError, setServerError] = useState<string>();
   const [isSuggestingKeywords, setIsSuggestingKeywords] = useState(false);
   const [keywordsError, setKeywordsError] = useState<string>();
@@ -37,7 +37,7 @@ export function SubmissionForm({ journals }: { journals: JournalOption[] }) {
     getValues,
     setValue,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(formSchema) });
+  } = useForm<FormValues>({ resolver: zodResolver(formSchema), defaultValues: {journalId: journals.some(j => j.id === selectedJournalId) ? selectedJournalId : ""} });
 
   async function handleSuggestKeywords() {
     const { title, abstract } = getValues();
@@ -104,7 +104,7 @@ export function SubmissionForm({ journals }: { journals: JournalOption[] }) {
       )}
       <div className="space-y-1.5">
         <Label htmlFor="journalId">Journal</Label>
-        <NativeSelect id="journalId" defaultValue="" {...field("journalId")}>
+        <NativeSelect id="journalId" {...field("journalId")}>
           <option value="" disabled>
             Select a journal…
           </option>

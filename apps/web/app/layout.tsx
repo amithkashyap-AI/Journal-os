@@ -1,35 +1,72 @@
 import type { Metadata } from "next";
 import "../styles/globals.css";
-import { apiFetch, AUTH_API, getToken } from "../lib/api";
+import { getAuthenticatedUser } from "../lib/api";
 import { logout } from "../lib/auth-actions";
 import { QueryProvider } from "../providers/query-provider";
 import { DashboardShell, UserMenu } from "@rpos/ui";
-import type { PublicUser } from "@rpos/types";
 import { NotificationBell } from "../components/NotificationBell";
 import { SidebarNav } from "../components/SidebarNav";
 
 import { ThemeProvider } from "../components/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "Research Publishing OS",
-  description: "Manuscript submission and peer review",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://researchos.io"),
+  title: {
+    default: "Research Publishing OS — Open Academic Journals & Peer Review",
+    template: "%s | Research Publishing OS",
+  },
+  description:
+    "Next-generation scholarly publishing infrastructure. Open-access journal management, automated peer-review orchestration, Crossref DOI minting, and Highwire Press SEO indexing.",
+  keywords: [
+    "academic publishing",
+    "open access journals",
+    "scholarly peer review",
+    "Crossref DOI minting",
+    "Google Scholar indexing",
+    "Highwire Press metadata",
+    "manuscript submission",
+    "editorial management system",
+    "academic research",
+  ],
+  authors: [{ name: "Research Publishing OS Consortium" }],
+  creator: "Research Publishing OS",
+  publisher: "Research Publishing OS Consortium",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://researchos.io",
+    siteName: "Research Publishing OS",
+    title: "Research Publishing OS — Open Academic Journals & Peer Review",
+    description:
+      "Enterprise scholarly publishing platform with automated peer-review orchestration, Crossref DOI minting, and Highwire Press Google Scholar indexing.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Research Publishing OS — Open Academic Journals & Peer Review",
+    description:
+      "Next-generation scholarly publishing infrastructure with automated peer-review orchestration and DOI indexing.",
+    creator: "@ResearchPubOS",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const token = await getToken();
-  let user: PublicUser | null = null;
-
-  if (token) {
-    try {
-      const meRes = await apiFetch(AUTH_API, "/v1/auth/me");
-      if (meRes.ok) {
-        const data = await meRes.json() as { user: PublicUser };
-        user = data.user;
-      }
-    } catch (e) {
-      console.error("Failed to fetch user in layout:", e);
-    }
-  }
+  const user = await getAuthenticatedUser();
 
   const sidebarContent = (
     <div className="space-y-4">
@@ -48,11 +85,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   ) : undefined;
 
   return (
-    <html lang="en" className="scroll-smooth dark theme-slate">
+    // Extensions can inject root attributes before React hydrates. Limit the
+    // escape hatch to this element; mismatches inside the app remain visible.
+    <html lang="en" className="scroll-smooth dark theme-slate" suppressHydrationWarning>
       <body className="bg-background min-h-screen text-foreground antialiased">
         <ThemeProvider>
           <QueryProvider>
-            {token && user ? (
+            {user ? (
               <DashboardShell
                 sidebarContent={sidebarContent}
                 sidebarFooter={sidebarFooter}
@@ -68,9 +107,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 {children}
               </DashboardShell>
             ) : (
-              <main className="flex min-h-screen flex-col items-center justify-center p-6">
-                {children}
-              </main>
+              <main className="min-h-screen bg-mesh">{children}</main>
             )}
           </QueryProvider>
         </ThemeProvider>

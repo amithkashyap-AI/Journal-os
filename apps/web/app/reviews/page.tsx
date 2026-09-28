@@ -1,19 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ClipboardList, Calendar } from "lucide-react";
-import type { PublicUser } from "@rpos/types";
 import { RecommendationBadge } from "../../components/RecommendationBadge";
 import { Card, CardContent, PageHeader, EmptyState } from "@rpos/ui";
-import { apiFetch, AUTH_API, getToken, REVIEW_API, SUBMISSION_API } from "../../lib/api";
+import { apiFetch, getAuthenticatedUser, REVIEW_API, SUBMISSION_API } from "../../lib/api";
 import type { ReviewDto, SubmissionDto } from "../../lib/dto";
 
 export default async function ReviewsPage() {
-  const token = await getToken();
-  if (!token) redirect("/login");
-
-  const meRes = await apiFetch(AUTH_API, "/v1/auth/me");
-  if (!meRes.ok) redirect("/login");
-  const { user } = (await meRes.json()) as { user: PublicUser };
+  const user = await getAuthenticatedUser();
+  if (!user) redirect("/login");
   const isStaff =
     user.roles.includes("EDITOR") ||
     user.roles.includes("ADMIN") ||

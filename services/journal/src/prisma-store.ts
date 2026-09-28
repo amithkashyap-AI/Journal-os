@@ -1,6 +1,9 @@
 import { getPrisma } from "@rpos/database";
 import type { UserRole } from "@rpos/types";
 import type {
+  IndexingEvidence,
+  PublicationProfile,
+  JournalAssessment,
   CreateJournalData,
   CreatePublisherData,
   JournalStore,
@@ -24,6 +27,29 @@ function flatten(journal: JournalRecord): JournalWithPublisher {
 export class PrismaJournalStore implements JournalStore {
   private readonly db = getPrisma();
 
+  async getPublicationProfile(journalId: string) { return this.db.journalPublicationProfile.findUnique({where: {journalId}}); }
+  async savePublicationProfile(data: PublicationProfile): Promise<void> {
+    await this.db.journalPublicationProfile.upsert({where: {journalId: data.journalId}, create: data, update: data});
+  }
+  async isJournalEditor(journalId: string, userId: string): Promise<boolean> {
+    return !!await this.db.journalEditorAssignment.findUnique({ where: { journalId_userId: { journalId, userId } } });
+  }
+  async listEditors(journalId: string) {
+    return (await this.db.journalEditorAssignment.findMany({ where: { journalId }, include: { user: { select: { name: true, email: true } } } }))
+      .map(({userId, user}) => ({userId, ...user}));
+  }
+  async assignEditor(journalId: string, userId: string): Promise<void> {
+    await this.db.journalEditorAssignment.upsert({ where: { journalId_userId: { journalId, userId } }, create: { journalId, userId }, update: {} });
+  }
+  async removeEditor(journalId: string, userId: string): Promise<void> { await this.db.journalEditorAssignment.deleteMany({where: {journalId, userId}}); }
+  async listEvidence(journalId: string) { return this.db.journalIndexingEvidence.findMany({where: {journalId}, orderBy: {source: "asc"}}); }
+  async saveEvidence(data: Omit<IndexingEvidence, "updatedAt">): Promise<void> {
+    await this.db.journalIndexingEvidence.upsert({ where: {journalId_source: {journalId: data.journalId, source: data.source}}, create: data, update: data });
+  }
+  async getAssessment(journalId: string) { return this.db.journalAssessment.findUnique({where: {journalId}}); }
+  async saveAssessment(data: JournalAssessment): Promise<void> {
+    await this.db.journalAssessment.upsert({where: {journalId: data.journalId}, create: data, update: data});
+  }
   async listJournals(): Promise<JournalWithPublisher[]> {
     const journals = await this.db.journal.findMany({
       include: { publisher: { select: { name: true } } },

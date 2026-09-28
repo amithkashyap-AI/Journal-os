@@ -35,9 +35,9 @@ const ALLOWED_MIME_TYPES = new Set([
   "text/plain",
 ]);
 
-// Editorial staff see every manuscript; reviewers only the ones on
-// submissions they are assigned to (checked per request via the store).
-const STAFF_ROLES: UserRole[] = ["EDITOR", "ADMIN", "SUPERADMIN"];
+// Only platform owners/admins have global access. Editors and reviewers
+// need a journal or review assignment, checked for this file.
+const STAFF_ROLES: UserRole[] = ["ADMIN", "SUPERADMIN"];
 
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
@@ -113,6 +113,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       const canRead =
         file.ownerId === request.user.sub ||
         request.user.roles.some((role) => STAFF_ROLES.includes(role)) ||
+        (request.user.roles.includes("EDITOR") && await files.isJournalEditor(file.id, request.user.sub)) ||
         (request.user.roles.includes("REVIEWER") &&
           (await files.isAssignedReviewer(file.id, request.user.sub)));
       if (!canRead) {

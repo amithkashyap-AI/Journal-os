@@ -70,9 +70,16 @@ describe("file-storage service", () => {
     expect(res.headers["content-disposition"]).toContain("manuscript.pdf");
   });
 
+  it("hides manuscripts from editors without a journal assignment", async () => {
+    const { id } = (await upload()).json().file;
+    const response = await app.inject({method: "GET", url: `/v1/files/${id}`, headers: authHeader("unassigned-editor", ["EDITOR"])});
+    expect(response.statusCode).toBe(404);
+  });
+
   it("allows editorial staff to download, hides from other authors", async () => {
     const { id } = (await upload()).json().file;
 
+    store.grantEditor(id, "editor-1");
     const editor = await app.inject({
       method: "GET",
       url: `/v1/files/${id}`,

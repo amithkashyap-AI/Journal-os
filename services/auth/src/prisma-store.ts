@@ -52,12 +52,13 @@ export class PrismaUserStore implements UserStore {
     });
   }
 
-  async create(input: Omit<StoredUser, "id">): Promise<StoredUser> {
+  async create(input: Omit<StoredUser, "id" | "active"> & { active?: boolean }): Promise<StoredUser> {
     return this.db.user.create({
       data: {
         email: input.email,
         name: input.name,
         passwordHash: input.passwordHash,
+        active: input.active ?? true,
         roles: input.roles,
       },
     });
@@ -68,6 +69,10 @@ export class PrismaUserStore implements UserStore {
       where: { id },
       data: { roles },
     });
+  }
+
+  async updateActive(id: string, active: boolean): Promise<StoredUser> {
+    return this.db.user.update({ where: { id }, data: { active } });
   }
 
   async listCustomRoles(): Promise<StoredRole[]> {
@@ -170,4 +175,3 @@ export class PrismaUserStore implements UserStore {
     return [...keys];
   }
 }
-

@@ -1,0 +1,3 @@
+output/embeddings-*.npy
+output/*.tmp
+__pycache__/
