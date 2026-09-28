@@ -16,6 +16,8 @@ import {
   Sparkles,
   Mail,
   Megaphone,
+  Send,
+  Key,
 } from "lucide-react";
 import { NavLink, SidebarSection } from "@rpos/ui";
 import type { UserRole } from "@rpos/types";
@@ -62,6 +64,42 @@ export function SidebarNav({ roles }: { roles: UserRole[] }) {
         )}
         <NavLink href="/journals" label={isEditor || isAdmin ? "My journals" : "Journals"} icon={<BookOpenText className="size-4" />} />
       </SidebarSection>
+
+      {(isPublisher || isAdmin) && (
+        <SidebarSection title="Publisher Suite">
+          <NavLink
+            href="/publisher"
+            label="Publisher Hub"
+            icon={<Building2 className="size-4" />}
+            exact
+          />
+          <NavLink
+            href="/publisher/production"
+            label="Production & DOIs"
+            icon={<Send className="size-4" />}
+          />
+          <NavLink
+            href="/publisher/journals"
+            label="Journal Catalog"
+            icon={<BookOpenText className="size-4" />}
+          />
+          <NavLink
+            href="/publisher/finance"
+            label="Revenue & Agreements"
+            icon={<Coins className="size-4" />}
+          />
+          <NavLink
+            href="/publisher/team"
+            label="Editorial Board & Staff"
+            icon={<Users className="size-4" />}
+          />
+          <NavLink
+            href="/publisher/settings"
+            label="Organization & APIs"
+            icon={<Key className="size-4" />}
+          />
+        </SidebarSection>
+      )}
 
       {(isEditor || isAdmin) && (
         <SidebarSection title="Editorial Office">

@@ -3,7 +3,14 @@ import type { PublicUser } from "@rpos/types";
 import { PageHeader } from "@rpos/ui";
 import { PublisherDashboardClient } from "../../components/PublisherDashboardClient";
 import { apiFetch, AUTH_API, getToken, SUBMISSION_API } from "../../lib/api";
-import { fetchJournals, fetchMyPublishers, fetchPublisherMembers } from "../../lib/catalog";
+import {
+  fetchJournals,
+  fetchMyPublishers,
+  fetchPublishers,
+  fetchPublisherMembers,
+  type PublisherDto,
+  type JournalDto,
+} from "../../lib/catalog";
 import { fetchWorkflowRules } from "../../lib/workflow-actions";
 import type { SubmissionDto } from "../../lib/dto";
 
@@ -22,31 +29,36 @@ export default async function PublisherDashboardPage() {
     redirect("/dashboard");
   }
 
-  const [publishers, allJournals, submissionsRes] = await Promise.all([
+  const [myPublishersData, allPublishers, allJournals, submissionsRes] = await Promise.all([
     fetchMyPublishers(),
+    fetchPublishers(),
     fetchJournals(),
     apiFetch(SUBMISSION_API, "/v1/submissions"),
   ]);
 
-  const myPublisherIds = new Set(publishers.map((p) => p.id));
-  const myJournals = allJournals.filter((journal) => myPublisherIds.has(journal.publisherId));
-  const myJournalIds = new Set(myJournals.map((journal) => journal.id));
+  const isAdmin = user.roles.includes("ADMIN") || user.roles.includes("SUPERADMIN");
+  const publishers: PublisherDto[] =
+    myPublishersData.length > 0 ? myPublishersData : isAdmin ? allPublishers : [];
+
+  const myPublisherIds = new Set(publishers.map((p: PublisherDto) => p.id));
+  const myJournals = allJournals.filter((journal: JournalDto) => myPublisherIds.has(journal.publisherId));
+  const myJournalIds = new Set(myJournals.map((journal: JournalDto) => journal.id));
 
   const { submissions } = submissionsRes.ok
     ? ((await submissionsRes.json()) as { submissions: SubmissionDto[] })
     : { submissions: [] as SubmissionDto[] };
   const readyToPublish = submissions
-    .filter((s) => s.status === "ACCEPTED" && myJournalIds.has(s.journalId))
+    .filter((s) => s.status === "ACCEPTED" && (myJournalIds.size === 0 || myJournalIds.has(s.journalId)))
     .map((s) => ({
       ...s,
-      journalTitle: myJournals.find((j) => j.id === s.journalId)?.title ?? "Unknown journal",
+      journalTitle: myJournals.find((j) => j.id === s.journalId)?.title ?? "Open Access Journal",
     }));
   const recentlyPublished = submissions
-    .filter((s) => s.status === "PUBLISHED" && myJournalIds.has(s.journalId) && s.doi)
+    .filter((s) => s.status === "PUBLISHED" && (myJournalIds.size === 0 || myJournalIds.has(s.journalId)) && s.doi)
     .map((s) => ({
       id: s.id,
       title: s.title,
-      journalTitle: myJournals.find((j) => j.id === s.journalId)?.title ?? "Unknown journal",
+      journalTitle: myJournals.find((j) => j.id === s.journalId)?.title ?? "Open Access Journal",
       doi: s.doi as string,
     }));
 
