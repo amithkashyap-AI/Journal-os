@@ -64,3 +64,4 @@ infrastructure/terraform/*.tfvars
 reports/
 
 
+.neon
