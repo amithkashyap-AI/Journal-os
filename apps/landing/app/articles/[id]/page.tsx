@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, BookOpenText, Quote } from "lucide-react";
 import { fetchPublicJournals, fetchPublishedArticles } from "../../../lib/api";
 
+export const dynamic = "force-dynamic";
+
 export default async function ArticleDetailPage({
   params,
 }: {

@@ -8,6 +8,8 @@ export const metadata = {
   description: "Browse published articles across every journal on Research Publishing OS.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function ArticlesPage() {
   const [articles, journals] = await Promise.all([fetchPublishedArticles(), fetchPublicJournals()]);
 

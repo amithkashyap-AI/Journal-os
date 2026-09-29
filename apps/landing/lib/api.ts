@@ -23,15 +23,24 @@ export interface PublicArticleDto {
 }
 
 export async function fetchPublicJournals(): Promise<PublicJournalDto[]> {
-  const res = await fetch(`${GATEWAY_API}/api/journals/public`, { next: { revalidate: 60 } });
-  if (!res.ok) return [];
-  const { journals } = (await res.json()) as { journals: PublicJournalDto[] };
-  return journals;
+  try {
+    const res = await fetch(`${GATEWAY_API}/api/journals/public`, { next: { revalidate: 60 } });
+    if (!res.ok) return [];
+    const { journals } = (await res.json()) as { journals: PublicJournalDto[] };
+    return journals;
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchPublishedArticles(): Promise<PublicArticleDto[]> {
-  const res = await fetch(`${GATEWAY_API}/api/submissions/published`, { next: { revalidate: 60 } });
-  if (!res.ok) return [];
-  const { submissions } = (await res.json()) as { submissions: PublicArticleDto[] };
-  return submissions;
+  try {
+    const res = await fetch(`${GATEWAY_API}/api/submissions/published`, { next: { revalidate: 60 } });
+    if (!res.ok) return [];
+    const { submissions } = (await res.json()) as { submissions: PublicArticleDto[] };
+    return submissions;
+  } catch {
+    return [];
+  }
 }
+
