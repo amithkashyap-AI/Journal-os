@@ -19,9 +19,20 @@ export interface ReviewDto {
   id: string;
   submissionId: string;
   reviewerId: string;
+  round?: number;
   recommendation: ReviewRecommendation | null;
   comments: string | null;
   dueAt: string | null;
+  submittedAt: string | null;
+  createdAt: string;
+}
+
+export interface AuthorReviewDto {
+  id: string;
+  submissionId: string;
+  round: number;
+  recommendation: ReviewRecommendation | null;
+  comments: string | null;
   submittedAt: string | null;
   createdAt: string;
 }

@@ -65,6 +65,7 @@ export type CreateSubmissionInput = z.infer<typeof createSubmissionSchema>;
 export const assignReviewerSchema = z.object({
   reviewerId: z.string().min(1),
   dueAt: z.coerce.date().optional(),
+  round: z.coerce.number().int().min(1).optional(),
 });
 
 export type AssignReviewerInput = z.infer<typeof assignReviewerSchema>;
@@ -128,8 +129,8 @@ export const updateWorkflowRuleSchema = z.object({
 export type UpdateWorkflowRuleInput = z.infer<typeof updateWorkflowRuleSchema>;
 
 export const suggestKeywordsSchema = z.object({
-  title: z.string().min(3).max(500),
-  abstract: z.string().min(10).max(10000),
+  title: z.string().min(2).max(500),
+  abstract: z.string().min(2).max(10000),
 });
 
 export type SuggestKeywordsInput = z.infer<typeof suggestKeywordsSchema>;

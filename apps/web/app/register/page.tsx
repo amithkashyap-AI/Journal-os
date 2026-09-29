@@ -155,7 +155,7 @@ export default async function RegisterPage({
             <span className="text-slate-300 font-medium">Crossref</span>
           </div>
           <div>
-            © {new Date().getFullYear()} Research Publishing OS.
+            Copyright © AalgoLabs (OPC) PVT. LTD. All rights reserved.
           </div>
         </div>
       </div>
@@ -226,15 +226,22 @@ export default async function RegisterPage({
                     <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
                   </Link>
                 </div>
+
+                <div className="pt-2 text-center text-[10px] text-slate-400 border-t border-slate-800/40">
+                  Copyright © AalgoLabs (OPC) PVT. LTD. All rights reserved.
+                </div>
               </div>
             </div>
           </div>
 
           {/* Micro Legal & Security Guarantee Badge */}
-          <div className="mt-6 text-center space-y-1">
+          <div className="mt-6 text-center space-y-1.5">
             <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
               <ShieldCheck className="size-3.5 text-teal-400" />
               <span>Protected by Argon2 password hashing & enterprise encryption</span>
+            </p>
+            <p className="text-[11px] font-medium text-slate-300 pt-1">
+              Copyright © AalgoLabs (OPC) PVT. LTD. All rights reserved.
             </p>
           </div>
         </div>

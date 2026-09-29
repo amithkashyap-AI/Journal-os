@@ -8,7 +8,7 @@ import { AssignReviewerForm } from "../../../components/forms/assign-reviewer-fo
 import { ManuscriptUpload } from "../../../components/forms/manuscript-upload";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageHeader, Timeline } from "@rpos/ui";
 import { apiFetch, AUTH_API, getAuthenticatedUser, REVIEW_API, SUBMISSION_API } from "../../../lib/api";
-import type { ReviewDto, SubmissionDto } from "../../../lib/dto";
+import type { AuthorReviewDto, ReviewDto, SubmissionDto } from "../../../lib/dto";
 import { performSubmissionAction } from "../../../lib/submission-actions";
 
 const ACTION_LABELS: Record<SubmissionAction, string> = {
@@ -43,9 +43,11 @@ export default async function SubmissionPage({
     user.roles.includes("EDITOR") ||
     user.roles.includes("ADMIN") ||
     user.roles.includes("SUPERADMIN");
+  const isOwner = submission.authorId === user.id;
 
   let reviews: ReviewDto[] = [];
   let reviewers: PublicUser[] = [];
+  let authorReviews: AuthorReviewDto[] = [];
   if (isStaff) {
     const [reviewsRes, reviewersRes] = await Promise.all([
       apiFetch(REVIEW_API, `/v1/reviews?submissionId=${submission.id}`),
@@ -54,12 +56,19 @@ export default async function SubmissionPage({
     if (reviewsRes.ok) reviews = ((await reviewsRes.json()) as { reviews: ReviewDto[] }).reviews;
     if (reviewersRes.ok)
       reviewers = ((await reviewersRes.json()) as { users: PublicUser[] }).users;
+  } else if (isOwner) {
+    const authorReviewsRes = await apiFetch(
+      REVIEW_API,
+      `/v1/submissions/${submission.id}/author-reviews`,
+    );
+    if (authorReviewsRes.ok) {
+      authorReviews = ((await authorReviewsRes.json()) as { reviews: AuthorReviewDto[] }).reviews;
+    }
   }
   const reviewerName = (reviewerId: string) =>
     reviewers.find((reviewer) => reviewer.id === reviewerId)?.name ?? reviewerId;
 
   const canAssign = ["SUBMITTED", "UNDER_REVIEW"].includes(submission.status);
-  const isOwner = submission.authorId === user.id;
   const canEditManuscript =
     isOwner && ["DRAFT", "REVISIONS_REQUESTED"].includes(submission.status);
   const manuscriptFileId = submission.manuscriptUrl?.split("/").pop();
@@ -272,6 +281,47 @@ export default async function SubmissionPage({
                     Reviewers can only be assigned while the submission is submitted or under review.
                   </p>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Peer Review Feedback (Author View) */}
+          {isOwner && !isStaff && authorReviews.length > 0 && (
+            <Card className="border-border/40">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold">Reviewer Feedback</CardTitle>
+                <CardDescription>
+                  Anonymized peer review comments and recommendations for your manuscript.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ul className="divide-y divide-border/40">
+                  {authorReviews.map((review, index) => (
+                    <li key={review.id} className="space-y-2 py-4 first:pt-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="font-medium text-sm">
+                          Reviewer #{index + 1} {review.round > 1 ? `(Round ${review.round})` : ""}
+                        </span>
+                        <RecommendationBadge recommendation={review.recommendation} />
+                      </div>
+                      {review.comments ? (
+                        <div className="rounded-lg bg-muted/40 p-3 border border-border/20">
+                          <p className="text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                            {review.comments}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">No written comments provided.</p>
+                      )}
+                      {review.submittedAt && (
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <Calendar className="size-3" />
+                          <span>Filed {new Date(review.submittedAt).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </CardContent>
             </Card>
           )}

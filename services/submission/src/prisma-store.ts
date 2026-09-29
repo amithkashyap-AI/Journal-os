@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getPrisma } from "@rpos/database";
 import type { UserRole } from "@rpos/types";
 import type { SubmissionAction } from "@rpos/workflow-engine";
@@ -109,7 +110,10 @@ export class PrismaSubmissionStore implements SubmissionStore {
   }
 
   async resolveApiKey(key: string): Promise<ApiKeyLookup | null> {
-    const apiKey = await this.db.apiKey.findUnique({ where: { key } });
+    const keyHash = createHash("sha256").update(key).digest("hex");
+    const apiKey =
+      (await this.db.apiKey.findUnique({ where: { key: keyHash } })) ??
+      (await this.db.apiKey.findUnique({ where: { key } }));
     if (!apiKey || !apiKey.enabled) return null;
     return { apiKeyId: apiKey.id, publisherId: apiKey.publisherId };
   }

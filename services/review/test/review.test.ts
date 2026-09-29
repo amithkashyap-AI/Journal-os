@@ -255,4 +255,76 @@ describe("review service", () => {
     });
     expect(res.statusCode).toBe(403);
   });
+
+  it("allows reassigning the same reviewer for a subsequent revision round", async () => {
+    const round1 = await assign("sub-1", "reviewer-1");
+    expect(round1.statusCode).toBe(201);
+    expect(round1.json().review.round).toBe(1);
+
+    // Same round fails
+    const dup = await assign("sub-1", "reviewer-1");
+    expect(dup.statusCode).toBe(409);
+
+    // Round 2 succeeds
+    const round2 = await app.inject({
+      method: "POST",
+      url: "/v1/submissions/sub-1/reviews",
+      headers: authHeader("editor-1", ["EDITOR"]),
+      payload: { reviewerId: "reviewer-1", round: 2 },
+    });
+    expect(round2.statusCode).toBe(201);
+    expect(round2.json().review.round).toBe(2);
+  });
+
+  it("serves anonymized reviews to the author with reviewerId redacted", async () => {
+    store.addSubmission({
+      id: "sub-author-test",
+      journalId: "journal-1",
+      authorId: "author-owner",
+      status: "UNDER_REVIEW",
+      title: "Author Paper",
+    });
+
+    const assignRes = await app.inject({
+      method: "POST",
+      url: "/v1/submissions/sub-author-test/reviews",
+      headers: authHeader("editor-1", ["EDITOR"]),
+      payload: { reviewerId: "reviewer-1" },
+    });
+    expect(assignRes.statusCode).toBe(201);
+    const reviewId = assignRes.json().review.id;
+
+    // Submit review
+    await app.inject({
+      method: "POST",
+      url: `/v1/reviews/${reviewId}/submit`,
+      headers: authHeader("reviewer-1", ["REVIEWER"]),
+      payload: {
+        recommendation: "MAJOR_REVISION",
+        comments: "The experimental design requires control groups in Section 2.",
+      },
+    });
+
+    // Author fetches reviews
+    const authorRes = await app.inject({
+      method: "GET",
+      url: "/v1/submissions/sub-author-test/author-reviews",
+      headers: authHeader("author-owner", ["AUTHOR"]),
+    });
+    expect(authorRes.statusCode).toBe(200);
+    const reviews = authorRes.json().reviews;
+    expect(reviews).toHaveLength(1);
+    expect(reviews[0].recommendation).toBe("MAJOR_REVISION");
+    expect(reviews[0].comments).toBe("The experimental design requires control groups in Section 2.");
+    expect(reviews[0].round).toBe(1);
+    expect(reviews[0].reviewerId).toBeUndefined(); // reviewerId redacted!
+
+    // Foreign author is forbidden
+    const strangerRes = await app.inject({
+      method: "GET",
+      url: "/v1/submissions/sub-author-test/author-reviews",
+      headers: authHeader("stranger", ["AUTHOR"]),
+    });
+    expect(strangerRes.statusCode).toBe(403);
+  });
 });

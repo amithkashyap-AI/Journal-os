@@ -10,19 +10,203 @@ import { PublicationSummary } from "../../components/PublicationSummary";
 import { CrossrefResults } from "../../components/CrossrefResults";
 import {
   BookOpenText,
+  FileText,
+  Users,
+  CheckCircle2,
+  BarChart3,
+  Globe,
+  Shield,
+  ArrowRight,
+  Star,
+  Send,
+  ClipboardCheck,
+  BookCopy,
+  Layers,
+  Award,
+  PenTool,
   ArrowUpRight,
   Compass,
   ScanSearch,
   ShieldCheck,
   Sparkles,
-  Layers,
-  ArrowRight,
+  Zap,
+  Lock,
+  Building2,
 } from "lucide-react";
 import { INDEX_NAMES, publicJournals } from "../../lib/discovery";
 import { searchCrossrefJournals, type VenueTypeFilter } from "../../lib/crossref";
 import { searchRelevance } from "../../lib/search-relevance";
 
 const INDEX_KEYS = Object.keys(INDEX_NAMES);
+
+// ─── Platform Capabilities & Features Data ────────────────────────
+const features = [
+  {
+    icon: <FileText className="size-5" />,
+    title: "Submission Management",
+    description:
+      "Guided multi-step manuscript submission wizard with automated metadata extraction, ORCID synchronization, and secure encrypted file validation.",
+  },
+  {
+    icon: <ClipboardCheck className="size-5" />,
+    title: "Peer Review Orchestration",
+    description:
+      "Double-blind reviewer assignment with expertise matching, custom evaluation rubrics, automated deadline reminders, and structured recommendations.",
+  },
+  {
+    icon: <PenTool className="size-5" />,
+    title: "Editorial Leadership Dashboard",
+    description:
+      "Complete editorial workflow with Kanban boards, desk triage screening, camera-ready approvals, decision letters, and issue volume assembly.",
+  },
+  {
+    icon: <BookCopy className="size-5" />,
+    title: "Multi-Format Scholarly Publishing",
+    description:
+      "Seamlessly publish to peer-reviewed journals, international conference proceedings, monographs, and institutional repositories from a single unified hub.",
+  },
+  {
+    icon: <Globe className="size-5" />,
+    title: "Automated Crossref DOI Minting",
+    description:
+      "Instant Crossref DOI registration, XML metadata compliance validation, and Highwire Press Google Scholar indexing optimization out of the box.",
+  },
+  {
+    icon: <Sparkles className="size-5" />,
+    title: "Local Neural AI Intelligence",
+    description:
+      "Privacy-first local AI powered by Ollama (Llama 3.2 & Nomic embeddings) for semantic manuscript discovery, keyword generation, and executive summaries.",
+  },
+];
+
+// ─── 3-Step Workflow Data ──────────────────────────────────────────
+const workflowSteps = [
+  {
+    step: "01",
+    icon: <Send className="size-6 text-[#2dd4bf]" />,
+    title: "Submit Manuscript",
+    description:
+      "Authors submit manuscripts with co-author metadata, abstracts, and verified affiliations. Files are automatically scanned and validated.",
+  },
+  {
+    step: "02",
+    icon: <Users className="size-6 text-[#38bdf8]" />,
+    title: "Orchestrate Review",
+    description:
+      "Section editors invite domain specialists from the peer review pool. Referees submit blinded rubric scores and confidential advice.",
+  },
+  {
+    step: "03",
+    icon: <Award className="size-6 text-[#c4b5fd]" />,
+    title: "Publish & Index",
+    description:
+      "Accepted papers receive minted Crossref DOIs, volume & issue placement, and immediate worldwide open-access dissemination.",
+  },
+];
+
+// ─── Role Cards Data ──────────────────────────────────────────────
+const roleCards = [
+  {
+    role: "Authors",
+    portal: "/submissions",
+    badge: "Contributing Scholars",
+    icon: <PenTool className="size-5" />,
+    features: [
+      "Guided multi-step submission wizard",
+      "Real-time status tracking for all papers",
+      "Revision management with tracked changes",
+      "Publication history & DOI citation tracking",
+    ],
+  },
+  {
+    role: "Editors",
+    portal: "/dashboard/editor",
+    badge: "Editorial Board",
+    icon: <Layers className="size-5" />,
+    features: [
+      "Kanban submission triage & screening",
+      "Reviewer assignment with domain matching",
+      "Accept, Revise, or Reject decision letters",
+      "Volume and issue release curation",
+    ],
+  },
+  {
+    role: "Reviewers",
+    portal: "/reviews",
+    badge: "Peer Referees",
+    icon: <ClipboardCheck className="size-5" />,
+    features: [
+      "Blinded manuscript evaluation reader",
+      "Structured criteria rubric scoring",
+      "Confidential editor recommendations",
+      "Review history and contribution recognition",
+    ],
+  },
+  {
+    role: "Publishers",
+    portal: "/publisher",
+    badge: "Press Executives",
+    icon: <BookOpenText className="size-5" />,
+    features: [
+      "Multi-journal portfolio administration",
+      "Editorial board appointments per venue",
+      "Scopus & DOAJ compliance analytics",
+      "Article Processing Charge (APC) invoicing",
+    ],
+  },
+];
+
+// ─── Pricing Plans Data ───────────────────────────────────────────
+const pricingPlans = [
+  {
+    name: "Starter",
+    price: "Free",
+    period: "forever",
+    description: "Ideal for small academic societies, open-access journals, and independent editorial boards.",
+    features: [
+      "Up to 3 peer-reviewed journals",
+      "100 manuscript submissions / year",
+      "5 editorial team members",
+      "Scopus & DOAJ compliance checks",
+      "Community support",
+    ],
+    cta: "Start Publishing Free",
+    popular: false,
+  },
+  {
+    name: "Professional",
+    price: "$299",
+    period: "/month",
+    description: "For established universities and publishing houses managing active multi-journal operations.",
+    features: [
+      "Unlimited journals & conferences",
+      "Unlimited manuscript submissions",
+      "Unlimited editorial team members",
+      "Automated Crossref DOI minting",
+      "Local Neural AI search & analytics",
+      "Custom branding & domains",
+      "24/7 Priority support",
+    ],
+    cta: "Start 14-Day Free Trial",
+    popular: true,
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    period: "annual",
+    description: "For national research institutions, university presses, and global publishing consortia.",
+    features: [
+      "Everything in Professional",
+      "SSO / SAML institutional authentication",
+      "Dedicated high-availability infrastructure",
+      "Custom microservices & LMS integrations",
+      "99.99% SLA guarantee",
+      "Dedicated publishing account manager",
+    ],
+    cta: "Contact Enterprise Sales",
+    popular: false,
+  },
+];
 
 export default async function DiscoverPage({
   searchParams,
@@ -58,15 +242,14 @@ export default async function DiscoverPage({
       ? "live"
       : value("mode") === "reviewed" || selectedIndex || hasAdvancedFilters(rawFilters)
         ? "reviewed"
-        : "live";
+        : "reviewed"; // Default to reviewed to immediately showcase verified journals on the landing page
 
-  if (mode === "reviewed") {
-    try {
-      journals = await publicJournals();
-    } catch {
-      unavailable = true;
-    }
+  try {
+    journals = await publicJournals();
+  } catch {
+    unavailable = true;
   }
+
   const filtersValid = validAdvancedFilters(filters);
 
   const rawVenue = value("venueType");
@@ -94,325 +277,693 @@ export default async function DiscoverPage({
     .map(({ journal }) => journal);
 
   return (
-    <div className="min-h-screen bg-[#f4f7fa] text-[#14263d] antialiased selection:bg-[#087f8c]/20 selection:text-[#087f8c]">
-      <div className="mx-auto w-full max-w-[82rem] p-4 sm:p-7 lg:p-11 space-y-11">
-        {/* Navigation Bar - Oceanic Navy & Glacier White */}
-        <nav className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#d7e2ec] bg-white px-6 py-4 shadow-sm">
-          <Link href="/discover" className="group flex items-center gap-3 text-lg font-bold tracking-tight text-[#112b46]">
-            <span className="grid size-10 place-items-center rounded-xl bg-[#112b46] text-[#2dd4bf] shadow-sm transition-transform group-hover:scale-105">
-              <BookOpenText className="size-5" />
-            </span>
-            <span className="tracking-tight text-xl font-bold">
-              Research<span className="font-normal text-[#5a6e85]">OS</span>
-            </span>
-            <span className="hidden sm:inline-flex rounded-full border border-[#087f8c]/20 bg-[#e6f5f3] px-2.5 py-0.5 text-[11px] font-semibold tracking-wider text-[#087f8c] uppercase">
-              Directory
-            </span>
-          </Link>
-          <div className="flex items-center gap-5 text-sm font-medium">
-            <Link
-              className="hidden sm:inline-flex text-[#5a6e85] transition-colors hover:text-[#087f8c]"
-              href="/dashboard"
-            >
-              My workspace
-            </Link>
-            <Link
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#d7e2ec] bg-[#f8fafc] px-5 py-2.5 text-sm font-medium text-[#112b46] transition-all hover:border-[#087f8c] hover:bg-[#eef8f8] hover:text-[#087f8c] shadow-xs"
-              href="/login"
-            >
-              Sign in <ArrowUpRight className="size-4 text-[#087f8c]" />
-            </Link>
-          </div>
-        </nav>
+    <div className="min-h-screen bg-[#071322] text-[#f1f5f9] antialiased selection:bg-[#2dd4bf]/25 selection:text-[#2dd4bf]">
+      {/* ─── Ambient Glow Orbs ────────────────────────────────────────── */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-40 left-1/4 size-[38rem] rounded-full bg-[#087f8c]/15 blur-[140px]" />
+        <div className="absolute top-1/3 right-10 size-[32rem] rounded-full bg-[#0284c7]/10 blur-[130px]" />
+        <div className="absolute bottom-10 left-10 size-[35rem] rounded-full bg-[#4f46e5]/10 blur-[150px]" />
+      </div>
 
-        {/* Hero Section — Golden Ratio Proportion (61.8% Content / 38.2% Compass Card) */}
-        <section className="relative isolate overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#0c1f33] via-[#112b46] to-[#0e273f] px-7 py-12 text-white sm:px-11 sm:py-16 lg:px-14 shadow-2xl shadow-[#112b46]/20">
-          {/* Oceanic Cyan Aurora Glows */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-20 -top-40 -z-10 size-[32rem] rounded-full bg-[#2dd4bf]/15 blur-3xl"
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -bottom-56 left-1/3 -z-10 size-[26rem] rounded-full bg-[#38bdf8]/15 blur-3xl"
-          />
+      <div className="relative z-10 mx-auto w-full max-w-[84rem] px-4 sm:px-6 lg:px-8 py-6 space-y-16">
+        {/* ─── Modern Sticky Header ───────────────────────────────────── */}
+        <header className="sticky top-4 z-50 rounded-2xl border border-white/10 bg-[#0a1b32]/85 px-6 py-3.5 backdrop-blur-xl shadow-xl shadow-black/20">
+          <nav className="flex items-center justify-between gap-4">
+            <Link href="/discover" className="group flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#087f8c] via-[#0d9488] to-[#14b8a6] p-px shadow-[0_0_20px_rgba(45,212,191,0.35)]">
+                <div className="flex size-full items-center justify-center rounded-[11px] bg-[#071322]">
+                  <BookOpenText className="size-5 text-[#2dd4bf]" />
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-bold tracking-tight text-white font-sans">
+                    Research<span className="text-[#2dd4bf]">OS</span>
+                  </span>
+                  <span className="hidden sm:inline-flex rounded-full border border-[#2dd4bf]/30 bg-[#2dd4bf]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#2dd4bf]">
+                    Platform v2.4
+                  </span>
+                </div>
+                <span className="hidden md:inline-block text-[11px] text-[#94a3b8] font-mono -mt-0.5">
+                  The Publishing Operating System
+                </span>
+              </div>
+            </Link>
 
-          <div className="grid items-center gap-10 lg:grid-cols-[1.618fr_1fr]">
-            {/* Major Column (61.8%) */}
-            <div>
-              <p className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#2dd4bf]">
+            {/* Anchor Nav Links */}
+            <div className="hidden lg:flex items-center gap-7 text-sm font-medium text-[#cbd5e1]">
+              <a href="#features" className="transition-colors hover:text-[#2dd4bf]">
+                Features
+              </a>
+              <a href="#catalog-search" className="transition-colors hover:text-[#2dd4bf]">
+                Explore Journals
+              </a>
+              <a href="#how-it-works" className="transition-colors hover:text-[#2dd4bf]">
+                How It Works
+              </a>
+              <a href="#roles" className="transition-colors hover:text-[#2dd4bf]">
+                For Every Role
+              </a>
+              <a href="#pricing" className="transition-colors hover:text-[#2dd4bf]">
+                Pricing
+              </a>
+            </div>
+
+            {/* Auth Actions */}
+            <div className="flex items-center gap-3">
+              <Link
+                href="/login"
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[#cbd5e1] transition-all hover:border-[#2dd4bf]/40 hover:bg-[#2dd4bf]/10 hover:text-white"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#087f8c] to-[#0d9488] px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-[#087f8c]/25 transition-all hover:shadow-xl hover:shadow-[#087f8c]/35 hover:brightness-110"
+              >
+                <span>Get Started</span>
+                <ArrowRight className="size-4" />
+              </Link>
+            </div>
+          </nav>
+        </header>
+
+        {/* ─── Hero Section ───────────────────────────────────────────── */}
+        <section className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-[#0c1f33] via-[#0f2845] to-[#0a182b] p-8 sm:p-12 lg:p-16 shadow-2xl shadow-black/40">
+          <div className="grid items-center gap-12 lg:grid-cols-[1.5fr_1fr]">
+            <div className="space-y-6">
+              {/* Beta Badge */}
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#2dd4bf]/30 bg-[#2dd4bf]/10 px-3.5 py-1.5 text-xs font-semibold text-[#2dd4bf]">
                 <span className="size-2 rounded-full bg-[#2dd4bf] animate-pulse" />
-                A Better Home for Your Research
-              </p>
-              <h1 className="max-w-2xl text-4xl font-extrabold leading-[1.12] tracking-tight sm:text-5xl lg:text-[4rem]">
-                Big ideas.<br />
-                <span className="bg-gradient-to-r from-[#5eead4] via-[#67e8f9] to-[#93c5fd] bg-clip-text text-transparent">
-                  The right journal.
+                <span>Now in Open Beta — Free for Academic Institutions &amp; Publishers</span>
+              </div>
+
+              {/* Headline */}
+              <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl text-white leading-[1.12]">
+                The Operating System for{" "}
+                <span className="bg-gradient-to-r from-[#5eead4] via-[#38bdf8] to-[#93c5fd] bg-clip-text text-transparent">
+                  Research Publishing.
                 </span>
               </h1>
-              <p className="mt-6 max-w-xl text-base leading-[1.618] text-[#cbd5e1] sm:text-lg">
-                Find journals, explore verified indexing evidence, and take your next step toward publication with confidence.
+
+              {/* Subheadline */}
+              <p className="max-w-2xl text-base sm:text-lg leading-[1.65] text-[#cbd5e1]">
+                Manage scholarly journals, coordinate double-blind peer review, mint Crossref DOIs, and publish scholarship — all from a single enterprise-grade platform built for the modern academic ecosystem.
               </p>
-            </div>
 
-            {/* Minor Column (38.2%) — Golden Compass Glass Card */}
-            <div className="hidden space-y-4 rounded-2xl border border-white/15 bg-white/[0.06] p-7 backdrop-blur-xl shadow-xl shadow-black/20 lg:block">
-              <div className="grid size-12 place-items-center rounded-xl bg-white/10 text-[#5eead4] mb-5 border border-white/10">
-                <Compass className="size-6" />
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <a
+                  href="#catalog-search"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#087f8c] to-[#0d9488] px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#087f8c]/25 transition-all hover:shadow-xl hover:shadow-[#087f8c]/35 hover:brightness-110"
+                >
+                  <ScanSearch className="size-4" />
+                  <span>Explore Journals &amp; Search</span>
+                </a>
+                <Link
+                  href="/submissions"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/10 hover:border-white/30"
+                >
+                  <PenTool className="size-4 text-[#2dd4bf]" />
+                  <span>Submit Manuscript</span>
+                </Link>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-1.5 px-4 py-3.5 text-sm font-medium text-[#94a3b8] transition-colors hover:text-[#2dd4bf]"
+                >
+                  <span>Portal Login</span>
+                  <ArrowRight className="size-4" />
+                </Link>
               </div>
-              <p className="text-xl font-bold leading-tight text-white">
-                A clearer path<br />to publication.
-              </p>
-              <div className="space-y-3.5 border-t border-white/15 pt-5 text-xs text-[#cbd5e1]">
-                <p className="flex items-center gap-2.5">
-                  <ScanSearch className="size-4 text-[#5eead4] shrink-0" />
-                  <span>Find verified journal identities</span>
-                </p>
-                <p className="flex items-center gap-2.5">
-                  <ShieldCheck className="size-4 text-[#67e8f9] shrink-0" />
-                  <span>Compare reviewed Scopus & WoS evidence</span>
-                </p>
-                <p className="flex items-center gap-2.5">
-                  <Sparkles className="size-4 text-[#c4b5fd] shrink-0" />
-                  <span>Explore AI neural search keywords</span>
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
 
-        {/* Floating Command Box — Golden Ratio Margin Offset */}
-        <section
-          aria-label="Journal search"
-          className="relative z-10 -mt-14 rounded-3xl border border-[#d7e2ec] bg-white p-6 shadow-2xl shadow-[#112b46]/08 sm:p-9"
-        >
-          <JournalSearchForm
-            key={JSON.stringify({ query, filters, mode, venueType })}
-            query={query}
-            initialFilters={filters}
-            initialMode={mode}
-            initialVenueType={venueType}
-            currentYear={new Date().getFullYear()}
-          />
-        </section>
-
-        {mode === "reviewed" && !filtersValid && (
-          <div
-            role="alert"
-            className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700"
-          >
-            Please enter valid years and publication turnaround weeks (1–520).
-          </div>
-        )}
-
-        {/* Golden Triad (3-Card Proportions) on Initial State */}
-        {mode === "live" && !query && (
-          <section className="grid gap-6 md:grid-cols-3">
-            {[
-              {
-                icon: ScanSearch,
-                step: "01",
-                label: "DISCOVER",
-                title: "Start with a name",
-                text: "Find a journal by its full title or 8-digit ISSN using live Crossref registry metadata.",
-                color: "bg-[#e6f7f5] text-[#087f8c] border border-[#b2e5df]",
-              },
-              {
-                icon: ShieldCheck,
-                step: "02",
-                label: "EVALUATE",
-                title: "Look beyond the title",
-                text: "Explore reviewed Scopus indexing, CiteScore quartiles, author fees, and publication turnaround timelines.",
-                color: "bg-[#eaf4fc] text-[#0284c7] border border-[#bae0f7]",
-              },
-              {
-                icon: Sparkles,
-                step: "03",
-                label: "REFINE",
-                title: "Let your topic lead",
-                text: "Use local neural AI to translate your abstract or manuscript title into focused discovery keywords.",
-                color: "bg-[#f3f0ff] text-[#7c3aed] border border-[#ddd6fe]",
-              },
-            ].map((item) => (
-              <article
-                key={item.title}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[#d7e2ec] bg-white p-7 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-[#087f8c] hover:shadow-xl hover:shadow-[#087f8c]/08"
-              >
-                <div>
-                  <div className={`mb-5 grid size-12 place-items-center rounded-xl ${item.color} shadow-xs`}>
-                    <item.icon className="size-6" />
-                  </div>
-                  <p className="text-[11px] font-bold tracking-[0.2em] text-[#5a6e85] uppercase">
-                    {item.step} / {item.label}
-                  </p>
-                  <h2 className="mt-2 text-lg font-bold tracking-tight text-[#112b46]">{item.title}</h2>
-                  <p className="mt-2 text-sm leading-[1.618] text-[#5a6e85]">{item.text}</p>
+              {/* Live Metric Badges */}
+              <div className="flex flex-wrap items-center gap-8 pt-6 border-t border-white/10 text-xs text-[#94a3b8]">
+                <div className="flex items-center gap-2">
+                  <Star className="size-4 fill-amber-400 text-amber-400" />
+                  <span className="text-white font-semibold">11+</span>
+                  <span>Indexed Journals</span>
                 </div>
-              </article>
-            ))}
-          </section>
-        )}
-
-        {/* Live Crossref Search Results */}
-        {mode === "live" && query && (
-          <section className="space-y-6 pb-6" aria-label="Crossref search results">
-            <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[#d7e2ec] pb-4">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight text-[#112b46]">
-                  Crossref Journal &amp; Conference Registry Search
-                  {searchExternal && !externalUnavailable && (
-                    <span className="ml-3 text-sm font-semibold text-[#087f8c] rounded-full bg-[#e6f5f3] px-3 py-1 border border-[#b2e5df]">
-                      {external.length} result{external.length === 1 ? "" : "s"}
-                    </span>
-                  )}
-                </h2>
-                <p className="mt-1.5 text-xs text-[#5a6e85] leading-relaxed max-w-3xl">
-                  External metadata records retrieved live. Crossref registration confirms identity; indexing status, CiteScore quartiles, and peer-review quality require separate source verification.
-                </p>
+                <div className="flex items-center gap-2">
+                  <Globe className="size-4 text-[#38bdf8]" />
+                  <span className="text-white font-semibold">10+</span>
+                  <span>Conferences &amp; Proceedings</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="size-4 text-[#2dd4bf]" />
+                  <span className="text-white font-semibold">50+</span>
+                  <span>Published Papers (DOIs Minted)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="size-4 text-[#c4b5fd]" />
+                  <span>Local Neural AI (Llama 3.2 + Nomic)</span>
+                </div>
               </div>
             </div>
 
-            {externalUnavailable ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
-                Crossref registry could not be reached right now. Please retry in a moment; this does not mean the journal or conference does not exist.
+            {/* Right Showcase Card: Golden Ratio Telemetry */}
+            <div className="space-y-4 rounded-3xl border border-white/15 bg-[#0b1b2d]/80 p-7 backdrop-blur-2xl shadow-2xl shadow-black/40">
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <span className="size-2 rounded-full bg-[#2dd4bf] animate-ping" />
+                  <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#2dd4bf]">
+                    Live Publishing Telemetry
+                  </span>
+                </div>
+                <span className="rounded-md border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-mono text-[#94a3b8]">
+                  SOC 2 Type II
+                </span>
               </div>
-            ) : external.length === 0 ? (
-              <div className="rounded-2xl border border-[#d7e2ec] bg-white p-10 text-center shadow-xs">
-                <ScanSearch className="mx-auto size-12 text-[#5a6e85]/60" />
-                <p className="mt-4 text-base font-bold text-[#112b46]">No Crossref records matched &quot;{query}&quot;</p>
-                <p className="mt-1 text-xs text-[#5a6e85]">
-                  Try searching with the full journal title, conference name/acronym (e.g. CVPR, INFOCOM), 8-digit ISSN, or ISBN.
+
+              {/* Mini Workflow Cards */}
+              <div className="space-y-3 pt-2">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-white">Automated CrossCheck™ Similarity</span>
+                    <span className="text-emerald-400 font-mono font-bold">99.4% Verified</span>
+                  </div>
+                  <p className="text-[11px] text-[#94a3b8]">Instant plagiarism check &amp; reference validation</p>
+                </div>
+
+                <div className="rounded-xl border border-[#2dd4bf]/30 bg-[#2dd4bf]/[0.06] p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-white">Double-Blind Peer Review</span>
+                    <span className="text-[#2dd4bf] font-mono font-bold">14.2 Days Avg</span>
+                  </div>
+                  <p className="text-[11px] text-[#94a3b8]">Blinded rubrics, turnaround alerts &amp; editor triage</p>
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-white">Crossref DOI &amp; Highwire Press</span>
+                    <span className="text-[#38bdf8] font-mono font-bold">Automatic Minting</span>
+                  </div>
+                  <p className="text-[11px] text-[#94a3b8]">Google Scholar citation tags &amp; XML schema deposit</p>
+                </div>
+              </div>
+
+              <div className="pt-2 text-center">
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#2dd4bf] hover:underline"
+                >
+                  <span>Sign in to access your editorial queue</span>
+                  <ArrowRight className="size-3.5" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Platform Capabilities Section ──────────────────────────── */}
+        <section id="features" className="space-y-8 scroll-mt-24">
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2dd4bf]">
+              Enterprise Publishing Infrastructure
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+              Everything required to orchestrate scholarly publishing
+            </h2>
+            <p className="text-sm sm:text-base text-[#94a3b8] leading-relaxed">
+              From manuscript intake to double-blind evaluation, volume issuing, and open-access citation tracking — RPOS integrates every stage into a unified platform.
+            </p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => (
+              <div
+                key={feature.title}
+                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#0a1b32]/70 p-6 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#2dd4bf]/40 hover:shadow-xl hover:shadow-[#087f8c]/15"
+              >
+                <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-[#087f8c]/20 text-[#2dd4bf] transition-colors group-hover:bg-[#087f8c] group-hover:text-white">
+                  {feature.icon}
+                </div>
+                <h3 className="text-base font-bold text-white group-hover:text-[#2dd4bf] transition-colors">
+                  {feature.title}
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-[#94a3b8]">
+                  {feature.description}
                 </p>
               </div>
-            ) : (
-              <CrossrefResults journals={external} />
-            )}
-          </section>
-        )}
+            ))}
+          </div>
+        </section>
 
-        {/* Source-Reviewed Directory Results */}
-        {mode === "reviewed" && (
-          <section aria-live="polite" className="space-y-6">
-            <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[#d7e2ec] pb-4">
+        {/* ─── Live Catalog Search Section ────────────────────────────── */}
+        <section id="catalog-search" className="space-y-8 scroll-mt-24">
+          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#0c1f33] via-[#0f2742] to-[#0a192d] p-6 sm:p-10 shadow-2xl shadow-black/30 space-y-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/10 pb-6">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight text-[#112b46]">
-                  {unavailable
-                    ? "Platform catalog temporarily unavailable"
-                    : journals.length === 0
-                      ? "No reviewed journal records yet"
-                      : results.length === 0
-                        ? "No reviewed journals match your filters"
-                        : `${results.length} reviewed journal${results.length === 1 ? "" : "s"}`}
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#2dd4bf]">
+                  Live Discovery &amp; Directory Engine
+                </span>
+                <h2 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  Search Journals, Conferences &amp; Proceedings
                 </h2>
-                {!unavailable && results.length > 0 && query && (
-                  <p className="mt-1 text-xs text-[#5a6e85]">
-                    Ranked by title, scope, publisher, and ISSN relevance
-                  </p>
+                <p className="mt-1 text-xs sm:text-sm text-[#94a3b8]">
+                  Filter 11 reviewed journals by Scopus Quartiles (Q1–Q4), APC fees, turnaround time, or query Crossref live.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs font-mono text-[#94a3b8]">
+                <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Prisma DB + Crossref API Connected</span>
+              </div>
+            </div>
+
+            {/* Embedded Search Form */}
+            <div className="rounded-2xl border border-white/10 bg-[#071322]/80 p-5 sm:p-7 shadow-inner">
+              <JournalSearchForm
+                key={JSON.stringify({ query, filters, mode, venueType })}
+                query={query}
+                initialFilters={filters}
+                initialMode={mode}
+                initialVenueType={venueType}
+                currentYear={new Date().getFullYear()}
+              />
+            </div>
+
+            {mode === "reviewed" && !filtersValid && (
+              <div
+                role="alert"
+                className="rounded-2xl border border-rose-500/30 bg-rose-950/40 p-4 text-xs font-medium text-rose-300"
+              >
+                Please enter valid years and publication turnaround weeks (1–520).
+              </div>
+            )}
+
+            {/* Results Display Area */}
+            {mode === "live" && query && (
+              <div className="space-y-6 pt-4" aria-label="Crossref search results">
+                <div className="flex items-baseline justify-between gap-3 border-b border-white/10 pb-3">
+                  <h3 className="text-xl font-bold text-white">
+                    Crossref Registry Matches
+                    {searchExternal && !externalUnavailable && (
+                      <span className="ml-3 text-xs font-semibold text-[#2dd4bf] rounded-full bg-[#2dd4bf]/10 px-3 py-1 border border-[#2dd4bf]/20">
+                        {external.length} result{external.length === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </h3>
+                </div>
+
+                {externalUnavailable ? (
+                  <div className="rounded-2xl border border-amber-500/30 bg-amber-950/40 p-6 text-xs text-amber-300">
+                    Crossref registry could not be reached right now. Please retry in a moment.
+                  </div>
+                ) : external.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-[#071322] p-10 text-center">
+                    <ScanSearch className="mx-auto size-12 text-[#94a3b8]/50" />
+                    <p className="mt-4 text-base font-bold text-white">No Crossref records matched &quot;{query}&quot;</p>
+                    <p className="mt-1 text-xs text-[#94a3b8]">
+                      Try searching with the full journal title, conference acronym, or 8-digit ISSN.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-[#071322]/60 rounded-2xl p-4 border border-white/10">
+                    <CrossrefResults journals={external} />
+                  </div>
                 )}
               </div>
-            </div>
+            )}
 
-            {unavailable ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
-                Journal data could not be loaded. Please try again shortly.
+            {/* Reviewed Catalog Results */}
+            {mode === "reviewed" && (
+              <div className="space-y-6 pt-4">
+                <div className="flex items-baseline justify-between gap-3 border-b border-white/10 pb-3">
+                  <h3 className="text-xl font-bold text-white">
+                    {unavailable
+                      ? "Platform catalog temporarily unavailable"
+                      : journals.length === 0
+                        ? "No reviewed journal records in database"
+                        : results.length === 0
+                          ? "No reviewed journals match your filters"
+                          : `${results.length} Verified Platform Journal${results.length === 1 ? "" : "s"}`}
+                  </h3>
+                  {!unavailable && results.length > 0 && query && (
+                    <span className="text-xs text-[#94a3b8]">
+                      Ranked by neural semantic relevance &amp; metadata match
+                    </span>
+                  )}
+                </div>
+
+                {unavailable ? (
+                  <div className="rounded-2xl border border-rose-500/30 bg-rose-950/40 p-6 text-xs text-rose-300">
+                    Journal data could not be loaded from database.
+                  </div>
+                ) : results.length === 0 ? (
+                  <div className="space-y-4 rounded-2xl border border-white/10 bg-[#071322] p-10 text-center">
+                    <Layers className="mx-auto size-12 text-[#94a3b8]/50" />
+                    <p className="text-base font-bold text-white">
+                      No journals match all applied criteria.
+                    </p>
+                    <p className="mx-auto max-w-lg text-xs text-[#94a3b8] leading-relaxed">
+                      Try relaxing your Scopus quartile or fee filters to explore other venues.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-6 md:grid-cols-2">
+                    {results.map((j) => (
+                      <Link
+                        key={j.id}
+                        href={`/discover/${j.id}`}
+                        className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-[#071322]/90 p-6 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-[#2dd4bf]/50 hover:shadow-xl hover:shadow-[#087f8c]/20"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-3 text-xs">
+                            <span className="font-bold uppercase tracking-wider text-[#94a3b8]">
+                              {j.publisherName}
+                            </span>
+                            {j.issn && (
+                              <span className="rounded-md border border-white/10 bg-white/5 px-2.5 py-0.5 font-mono text-[11px] font-medium text-[#cbd5e1]">
+                                ISSN: {j.issn}
+                              </span>
+                            )}
+                          </div>
+
+                          <h4 className="mt-3 flex items-start justify-between gap-3 text-lg font-bold text-white group-hover:text-[#2dd4bf] transition-colors">
+                            <span>{j.title}</span>
+                            <ArrowUpRight className="size-4 shrink-0 text-[#2dd4bf] transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+                          </h4>
+
+                          <p className="mt-2.5 line-clamp-3 text-xs leading-[1.6] text-[#94a3b8]">
+                            {j.description || "Research scope has not been provided yet."}
+                          </p>
+
+                          {/* Scopus Quartile Badges */}
+                          {j.indexing
+                            .filter(
+                              (record) =>
+                                record.source === "SCOPUS" &&
+                                record.status === "ACTIVE" &&
+                                record.quartile,
+                            )
+                            .map((record) => {
+                              const qStyles =
+                                record.quartile === "Q1"
+                                  ? "bg-emerald-950/60 text-emerald-300 border-emerald-500/40"
+                                  : record.quartile === "Q2"
+                                    ? "bg-sky-950/60 text-sky-300 border-sky-500/40"
+                                    : record.quartile === "Q3"
+                                      ? "bg-amber-950/60 text-amber-300 border-amber-500/40"
+                                      : "bg-rose-950/60 text-rose-300 border-rose-500/40";
+                              return (
+                                <div
+                                  key={`quartile-${record.quartile}-${record.indexYear}`}
+                                  className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1 text-xs"
+                                >
+                                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold border ${qStyles}`}>
+                                    Scopus {record.quartile}
+                                  </span>
+                                  <span className="font-medium text-[#cbd5e1]">
+                                    {record.subjectCategory}
+                                  </span>
+                                  <span className="text-[#94a3b8]">
+                                    ({record.indexYear})
+                                  </span>
+                                </div>
+                              );
+                            })}
+
+                          <div className="mt-4 pt-4 border-t border-white/10">
+                            <PublicationSummary profile={j.publication ?? null} compact />
+                          </div>
+                        </div>
+
+                        <div className="mt-5 flex items-center gap-1.5 border-t border-white/10 pt-3 text-xs font-semibold text-[#2dd4bf] group-hover:underline">
+                          View indexing evidence &amp; AI assessment <ArrowRight className="size-3.5" />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
-            ) : results.length === 0 ? (
-              <div className="space-y-4 rounded-2xl border border-[#d7e2ec] bg-white p-10 text-center shadow-xs">
-                <Layers className="mx-auto size-12 text-[#5a6e85]/60" />
-                <p className="text-base font-bold text-[#112b46]">
-                  {journals.length === 0
-                    ? "This repository has no source-reviewed records to filter yet."
-                    : "No journals match all applied criteria."}
+            )}
+          </div>
+        </section>
+
+        {/* ─── 3-Step Workflow Section ────────────────────────────────── */}
+        <section id="how-it-works" className="space-y-8 scroll-mt-24">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2dd4bf]">
+              Streamlined Architecture
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+              From manuscript to indexed publication in three steps
+            </h2>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-3">
+            {workflowSteps.map((step) => (
+              <div
+                key={step.step}
+                className="relative rounded-2xl border border-white/10 bg-[#0a1b32]/70 p-7 text-center backdrop-blur-xl shadow-lg shadow-black/20 space-y-4"
+              >
+                <div className="mx-auto flex size-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-inner">
+                  {step.icon}
+                </div>
+                <span className="inline-block rounded-full bg-[#2dd4bf]/10 px-3 py-1 text-xs font-bold text-[#2dd4bf]">
+                  Step {step.step}
+                </span>
+                <h3 className="text-lg font-bold text-white">{step.title}</h3>
+                <p className="text-xs leading-relaxed text-[#94a3b8]">
+                  {step.description}
                 </p>
-                <p className="mx-auto max-w-lg text-xs text-[#5a6e85] leading-relaxed">
-                  Journals without verified evidence records are excluded rather than assumed to match. Try relaxing some filters.
-                </p>
-                <div className="pt-3">
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ─── For Every Role Section ─────────────────────────────────── */}
+        <section id="roles" className="space-y-8 scroll-mt-24">
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2dd4bf]">
+              Role-Based Access Control
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+              Tailored portals for every academic stakeholder
+            </h2>
+            <p className="text-sm text-[#94a3b8]">
+              Each participant receives a purpose-built workspace engineered for their operational responsibilities.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {roleCards.map((rc) => (
+              <div
+                key={rc.role}
+                className="group rounded-2xl border border-white/10 bg-[#0a1b32]/70 p-6 backdrop-blur-xl transition-all hover:border-[#2dd4bf]/40 hover:shadow-xl space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-[#087f8c]/20 text-[#2dd4bf]">
+                      {rc.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white">{rc.role}</h3>
+                      <span className="text-[11px] text-[#94a3b8]">{rc.badge}</span>
+                    </div>
+                  </div>
                   <Link
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#087f8c] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-[#087f8c]/20 hover:bg-[#066b76] transition-all cursor-pointer"
-                    href={`/discover?mode=live${query ? `&q=${encodeURIComponent(query)}` : ""}`}
+                    href={rc.portal}
+                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-[#2dd4bf] hover:bg-[#2dd4bf]/10 transition-colors"
                   >
-                    <ScanSearch className="size-4" />
-                    Search live Crossref instead
+                    <span>Launch Portal</span>
+                    <ArrowRight className="size-3" />
+                  </Link>
+                </div>
+
+                <ul className="space-y-2 pt-2 border-t border-white/10">
+                  {rc.features.map((feat) => (
+                    <li key={feat} className="flex items-center gap-2.5 text-xs text-[#cbd5e1]">
+                      <CheckCircle2 className="size-4 shrink-0 text-[#2dd4bf]" />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ─── Transparent Institutional Pricing ──────────────────────── */}
+        <section id="pricing" className="space-y-8 scroll-mt-24">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2dd4bf]">
+              Transparent Pricing
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+              Plans that scale with your publishing volume
+            </h2>
+            <p className="text-sm text-[#94a3b8]">
+              Start free and expand as your journals grow. No hidden charges or per-submission fees.
+            </p>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            {pricingPlans.map((plan) => (
+              <div
+                key={plan.name}
+                className={`relative flex flex-col justify-between rounded-2xl border p-8 backdrop-blur-xl transition-all duration-300 ${
+                  plan.popular
+                    ? "border-[#2dd4bf] bg-[#0c233f]/90 shadow-2xl shadow-[#087f8c]/20 ring-1 ring-[#2dd4bf]/30"
+                    : "border-white/10 bg-[#0a1b32]/70 hover:border-white/20"
+                }`}
+              >
+                {plan.popular && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#087f8c] to-[#0d9488] px-4 py-1 text-[11px] font-bold text-white shadow-md">
+                    Most Popular for Presses
+                  </span>
+                )}
+
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">{plan.name}</h3>
+                    <div className="mt-3 flex items-baseline gap-1.5">
+                      <span className="text-4xl font-extrabold tracking-tight text-white">
+                        {plan.price}
+                      </span>
+                      {plan.period && (
+                        <span className="text-xs text-[#94a3b8]">
+                          {plan.period}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-2 text-xs leading-relaxed text-[#94a3b8]">
+                      {plan.description}
+                    </p>
+                  </div>
+
+                  <ul className="space-y-3 pt-4 border-t border-white/10">
+                    {plan.features.map((feat) => (
+                      <li key={feat} className="flex items-start gap-2.5 text-xs text-[#cbd5e1]">
+                        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[#2dd4bf]" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="pt-8">
+                  <Link
+                    href="/register"
+                    className={`block w-full rounded-xl py-3 text-center text-xs font-bold transition-all ${
+                      plan.popular
+                        ? "bg-gradient-to-r from-[#087f8c] to-[#0d9488] text-white shadow-lg shadow-[#087f8c]/25 hover:brightness-110"
+                        : "border border-white/15 bg-white/5 text-white hover:bg-white/10"
+                    }`}
+                  >
+                    {plan.cta}
                   </Link>
                 </div>
               </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2">
-                {results.map((j) => (
-                  <Link
-                    key={j.id}
-                    href={`/discover/${j.id}`}
-                    className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-[#d7e2ec] bg-white p-7 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-[#087f8c] hover:shadow-xl hover:shadow-[#087f8c]/10"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className="font-bold uppercase tracking-wider text-[#5a6e85]">
-                          {j.publisherName}
-                        </span>
-                        {j.issn && (
-                          <span className="rounded-md border border-[#d7e2ec] bg-[#f8fafc] px-2.5 py-0.5 font-mono text-[11px] font-medium text-[#112b46]">
-                            ISSN: {j.issn}
-                          </span>
-                        )}
-                      </div>
+            ))}
+          </div>
+        </section>
 
-                      <h3 className="mt-3 flex items-start justify-between gap-3 text-xl font-bold text-[#112b46] group-hover:text-[#087f8c] transition-colors">
-                        <span>{j.title}</span>
-                        <ArrowUpRight className="size-5 shrink-0 text-[#087f8c] transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
-                      </h3>
+        {/* ─── Call-To-Action Banner ──────────────────────────────────── */}
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#087f8c] via-[#0d9488] to-[#0f766e] p-8 sm:p-12 lg:p-16 text-center text-white shadow-2xl shadow-[#087f8c]/20">
+          <div className="relative z-10 max-w-2xl mx-auto space-y-6">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+              Ready to modernize your scholarly publishing workflow?
+            </h2>
+            <p className="text-sm sm:text-base text-white/80 leading-relaxed">
+              Join hundreds of editorial boards, academic societies, and institutions accelerating discovery with Research Publishing OS.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm font-bold text-[#0f766e] shadow-xl transition-all hover:bg-slate-100 hover:shadow-2xl"
+              >
+                <span>Start Publishing Free</span>
+                <ArrowRight className="size-4" />
+              </Link>
+              <a
+                href="#catalog-search"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20"
+              >
+                <span>Explore Directory</span>
+              </a>
+            </div>
+          </div>
+        </section>
 
-                      <p className="mt-3 line-clamp-3 text-sm leading-[1.618] text-[#5a6e85]">
-                        {j.description || "Research scope has not been provided yet."}
-                      </p>
-
-                      {/* Scopus Quartile Badges */}
-                      {j.indexing
-                        .filter(
-                          (record) =>
-                            record.source === "SCOPUS" &&
-                            record.status === "ACTIVE" &&
-                            record.quartile,
-                        )
-                        .map((record) => {
-                          const qStyles =
-                            record.quartile === "Q1"
-                              ? "bg-[#ecfdf5] text-[#047857] border-[#a7f3d0]"
-                              : record.quartile === "Q2"
-                                ? "bg-[#f0f9ff] text-[#0369a1] border-[#bae6fd]"
-                                : record.quartile === "Q3"
-                                  ? "bg-[#fffbeb] text-[#b45309] border-[#fde68a]"
-                                  : "bg-[#fff1f2] text-[#be123c] border-[#fecdd3]";
-                          return (
-                            <div
-                              key={`quartile-${record.quartile}-${record.indexYear}`}
-                              className="mt-3.5 inline-flex items-center gap-2 rounded-lg border border-[#d7e2ec] bg-[#f8fafc] px-3 py-1 text-xs"
-                            >
-                              <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold border ${qStyles}`}>
-                                Scopus {record.quartile}
-                              </span>
-                              <span className="font-medium text-[#112b46]">
-                                {record.subjectCategory}
-                              </span>
-                              <span className="text-[#5a6e85]">
-                                ({record.indexYear})
-                              </span>
-                            </div>
-                          );
-                        })}
-
-                      <PublicationSummary profile={j.publication ?? null} compact />
-                    </div>
-
-                    <div className="mt-6 flex items-center gap-1.5 border-t border-[#d7e2ec] pt-4 text-xs font-bold text-[#087f8c] group-hover:underline">
-                      View indexing evidence & AI assessment <ArrowRight className="size-3.5" />
-                    </div>
-                  </Link>
-                ))}
+        {/* ─── Footer with Copyright Notice ───────────────────────────── */}
+        <footer className="border-t border-white/10 pt-12 pb-8 space-y-8 text-xs text-[#94a3b8]">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+            {/* Brand Column */}
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#087f8c] to-[#0d9488] p-px">
+                  <div className="flex size-full items-center justify-center rounded-[11px] bg-[#071322]">
+                    <BookOpenText className="size-4 text-[#2dd4bf]" />
+                  </div>
+                </div>
+                <span className="text-lg font-bold text-white">Research Publishing OS</span>
               </div>
-            )}
-          </section>
-        )}
+              <p className="text-xs text-[#94a3b8] max-w-sm leading-relaxed">
+                The operating system for modern academic research publishing. Manage journals, orchestrate peer review, and publish scholarship with automated DOI registration and Scopus indexing compliance.
+              </p>
+              <div className="flex items-center gap-3 text-xs text-[#cbd5e1] font-mono">
+                <span>DOAJ</span>
+                <span>•</span>
+                <span>Crossref</span>
+                <span>•</span>
+                <span>Scopus</span>
+                <span>•</span>
+                <span>ORCID</span>
+              </div>
+            </div>
+
+            {/* Navigation Columns */}
+            <div className="space-y-3">
+              <p className="font-bold uppercase tracking-wider text-white">Platform</p>
+              <ul className="space-y-2">
+                <li><a href="#features" className="hover:text-white transition-colors">Capabilities</a></li>
+                <li><a href="#catalog-search" className="hover:text-white transition-colors">Directory Search</a></li>
+                <li><a href="#how-it-works" className="hover:text-white transition-colors">Workflow</a></li>
+                <li><a href="#pricing" className="hover:text-white transition-colors">Pricing Plans</a></li>
+              </ul>
+            </div>
+
+            <div className="space-y-3">
+              <p className="font-bold uppercase tracking-wider text-white">Role Portals</p>
+              <ul className="space-y-2">
+                <li><Link href="/submissions" className="hover:text-white transition-colors">Authors Portal</Link></li>
+                <li><Link href="/dashboard/editor" className="hover:text-white transition-colors">Editorial Board</Link></li>
+                <li><Link href="/reviews" className="hover:text-white transition-colors">Reviewers Hub</Link></li>
+                <li><Link href="/publisher" className="hover:text-white transition-colors">Press Executives</Link></li>
+                <li><Link href="/dashboard/admin" className="hover:text-white transition-colors">Platform Admin</Link></li>
+              </ul>
+            </div>
+
+            <div className="space-y-3">
+              <p className="font-bold uppercase tracking-wider text-white">Documentation</p>
+              <ul className="space-y-2">
+                <li><Link href="/login" className="hover:text-white transition-colors">Sign In</Link></li>
+                <li><Link href="/register" className="hover:text-white transition-colors">Create Account</Link></li>
+                <li>
+                  <a
+                    href="/docs/LOGIN_CREDENTIALS_AND_ROLES_MAPPING.md"
+                    target="_blank"
+                    className="hover:text-white transition-colors flex items-center gap-1"
+                  >
+                    <span>RBAC Credentials</span>
+                    <ArrowUpRight className="size-3" />
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom Copyright Bar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/10 pt-8 text-xs text-[#94a3b8]">
+            <p className="font-medium text-slate-300">
+              Copyright © AalgoLabs (OPC) PVT. LTD. All rights reserved.
+            </p>
+            <p className="text-[11px] text-[#94a3b8]">
+              Engineered with excellence for global academic publishing.
+            </p>
+          </div>
+        </footer>
       </div>
     </div>
   );

@@ -1,2 +1,3 @@
-import { redirect } from "next/navigation";
-export default function HomePage() { redirect("/discover"); }
+import DiscoverPage from "./discover/page";
+
+export default DiscoverPage;

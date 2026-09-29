@@ -5,6 +5,7 @@ export interface StoredReview {
   id: string;
   submissionId: string;
   reviewerId: string;
+  round: number;
   recommendation: ReviewRecommendation | null;
   comments: string | null;
   dueAt: Date | null;
@@ -16,6 +17,7 @@ export interface StoredReview {
 export interface SubmissionInfo {
   id: string;
   journalId: string;
+  authorId?: string;
   status: SubmissionStatus;
   title: string;
 }
@@ -23,12 +25,14 @@ export interface SubmissionInfo {
 export interface CreateReviewData {
   submissionId: string;
   reviewerId: string;
+  round?: number;
   dueAt?: Date;
 }
 
 export interface ReviewFilter {
   reviewerId?: string;
   submissionId?: string;
+  round?: number;
 }
 
 export interface ReviewPatch {
@@ -119,6 +123,7 @@ export class InMemoryReviewStore implements ReviewStore {
       id: randomUUID(),
       submissionId: data.submissionId,
       reviewerId: data.reviewerId,
+      round: data.round ?? 1,
       recommendation: null,
       comments: null,
       dueAt: data.dueAt ?? null,
@@ -138,7 +143,8 @@ export class InMemoryReviewStore implements ReviewStore {
     return [...this.reviews.values()].filter(
       (review) =>
         (filter.reviewerId === undefined || review.reviewerId === filter.reviewerId) &&
-        (filter.submissionId === undefined || review.submissionId === filter.submissionId),
+        (filter.submissionId === undefined || review.submissionId === filter.submissionId) &&
+        (filter.round === undefined || review.round === filter.round),
     );
   }
 

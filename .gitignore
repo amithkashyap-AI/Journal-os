@@ -54,3 +54,13 @@ infrastructure/terraform/.terraform/
 infrastructure/terraform/*.tfstate
 infrastructure/terraform/*.tfstate.backup
 infrastructure/terraform/*.tfvars
+
+# Archives and build packages
+*.zip
+*.tar.gz
+*.tgz
+
+# Generated visual reports and temporary media
+reports/
+
+

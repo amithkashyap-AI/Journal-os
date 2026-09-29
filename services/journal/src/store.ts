@@ -97,9 +97,31 @@ export interface PublicationProfile {
   journalId: string; categories: string[]; feeModel: string; accessModel: string;
   publicationWeeks: number | null; sourceUrl: string; checkedAt: Date; notes: string; verifiedBy: string;
 }
+
 export interface JournalAssessment {
-  journalId: string; text: string; model: string; evidenceHash: string; generatedAt: Date;
+  journalId: string;
+  text: string;
+  model: string;
+  evidenceHash: string;
+  generatedAt: Date;
 }
+
+export interface JournalDiscoveryEvidence {
+  source: string;
+  status: string;
+  quartile: string | null;
+  indexYear: number | null;
+  subjectCategory: string | null;
+  checkedAt: Date;
+  coverageStartYear: number | null;
+  coverageEndYear: number | null;
+}
+
+export interface JournalDiscoveryItem extends JournalWithPublisher {
+  publication: Omit<PublicationProfile, "verifiedBy"> | null;
+  indexing: JournalDiscoveryEvidence[];
+}
+
 export interface JournalStore {
   getPublicationProfile(journalId: string): Promise<PublicationProfile | null>;
   savePublicationProfile(data: PublicationProfile): Promise<void>;
@@ -112,6 +134,7 @@ export interface JournalStore {
   getAssessment(journalId: string): Promise<JournalAssessment | null>;
   saveAssessment(data: JournalAssessment): Promise<void>;
   listJournals(): Promise<JournalWithPublisher[]>;
+  listDiscoveryJournals?(): Promise<JournalDiscoveryItem[]>;
   findJournalById(id: string): Promise<JournalWithPublisher | null>;
   findJournalBySlug(slug: string): Promise<StoredJournal | null>;
   createJournal(data: CreateJournalData): Promise<StoredJournal>;
@@ -199,6 +222,30 @@ export class InMemoryJournalStore implements JournalStore {
 
   async listJournals(): Promise<JournalWithPublisher[]> {
     return [...this.journals.values()].map((journal) => this.withPublisher(journal));
+  }
+
+  async listDiscoveryJournals(): Promise<JournalDiscoveryItem[]> {
+    const journals = await this.listJournals();
+    return journals.map((journal) => {
+      const profile = this.profiles.get(journal.id);
+      const evidence = [...this.evidence.values()]
+        .filter((e) => e.journalId === journal.id)
+        .sort((a, b) => a.source.localeCompare(b.source));
+      return {
+        ...journal,
+        publication: profile ? (({ verifiedBy: _v, ...p }) => p)(profile) : null,
+        indexing: evidence.map((e) => ({
+          source: e.source,
+          status: e.status,
+          quartile: e.quartile ?? null,
+          indexYear: e.indexYear ?? null,
+          subjectCategory: e.subjectCategory ?? null,
+          checkedAt: e.checkedAt,
+          coverageStartYear: e.coverageStartYear ?? null,
+          coverageEndYear: e.coverageEndYear ?? null,
+        })),
+      };
+    });
   }
 
   async findJournalById(id: string): Promise<JournalWithPublisher | null> {

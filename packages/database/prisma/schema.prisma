@@ -192,6 +192,7 @@ model Journal {
   assessment JournalAssessment?
   publicationProfile JournalPublicationProfile?
 
+  @@index([publisherId])
   @@map("journals")
 }
 
@@ -266,6 +267,7 @@ model Submission {
 
   @@index([journalId, status])
   @@index([status, publishedAt])
+  @@index([authorId, createdAt(sort: Desc)])
   @@map("submissions")
 }
 
@@ -273,6 +275,7 @@ model Review {
   id             String                @id @default(cuid())
   submissionId   String
   reviewerId     String
+  round          Int                   @default(1)
   recommendation ReviewRecommendation?
   comments       String?
   dueAt          DateTime?
@@ -283,7 +286,8 @@ model Review {
   submission Submission @relation(fields: [submissionId], references: [id])
   reviewer   User       @relation(fields: [reviewerId], references: [id])
 
-  @@unique([submissionId, reviewerId])
+  @@unique([submissionId, reviewerId, round])
+  @@index([reviewerId, submittedAt])
   @@map("reviews")
 }
 

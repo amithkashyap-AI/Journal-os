@@ -149,11 +149,21 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post("/v1/ai/journal-search", { onRequest: [app.authenticate] }, async (request, reply) => {
-    const parsed = z.object({topic: z.string().trim().min(10).max(2000)}).safeParse(request.body);
-    if (!parsed.success) return reply.code(400).send({error: "VALIDATION_ERROR"});
-    if (!options.journalSearch) return reply.code(503).send({error: "SEARCH_UNAVAILABLE"});
-    try { return await options.journalSearch.search(parsed.data.topic); }
-    catch { return reply.code(503).send({error: "SEARCH_UNAVAILABLE"}); }
+    const parsed = z
+      .object({
+        topic: z.string().trim().min(2).max(2000),
+        venueType: z.enum(["all", "journal", "conference"]).optional(),
+      })
+      .safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: "VALIDATION_ERROR" });
+    if (!options.journalSearch) return reply.code(503).send({ error: "SEARCH_UNAVAILABLE" });
+    try {
+      return await options.journalSearch.search(parsed.data.topic, {
+        venueType: parsed.data.venueType,
+      });
+    } catch {
+      return reply.code(503).send({ error: "SEARCH_UNAVAILABLE" });
+    }
   });
 
   return app;

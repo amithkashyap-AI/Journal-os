@@ -14,7 +14,7 @@ export class PrismaReviewStore implements ReviewStore {
   async findSubmission(id: string): Promise<SubmissionInfo | null> {
     return this.db.submission.findUnique({
       where: { id },
-      select: { id: true, journalId: true, status: true, title: true },
+      select: { id: true, journalId: true, authorId: true, status: true, title: true },
     });
   }
 
@@ -55,6 +55,7 @@ export class PrismaReviewStore implements ReviewStore {
       data: {
         submissionId: data.submissionId,
         reviewerId: data.reviewerId,
+        round: data.round ?? 1,
         dueAt: data.dueAt,
       },
     });
@@ -69,6 +70,7 @@ export class PrismaReviewStore implements ReviewStore {
       where: {
         ...(filter.reviewerId ? { reviewerId: filter.reviewerId } : {}),
         ...(filter.submissionId ? { submissionId: filter.submissionId } : {}),
+        ...(filter.round ? { round: filter.round } : {}),
       },
       orderBy: { createdAt: "desc" },
     });

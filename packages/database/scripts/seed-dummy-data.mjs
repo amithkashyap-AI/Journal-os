@@ -972,10 +972,22 @@ async function main() {
   }
 
   // 6. Upsert 10 Authors
-  const reviewer = await prisma.user.findFirst({
+  let reviewer = await prisma.user.findFirst({
     where: { roles: { has: "REVIEWER" } },
   });
-  const reviewerId = reviewer ? reviewer.id : ownerId || "system";
+  if (!reviewer) {
+    reviewer = await prisma.user.upsert({
+      where: { email: "reviewer@rpos.dev" },
+      update: { roles: ["REVIEWER"] },
+      create: {
+        email: "reviewer@rpos.dev",
+        name: "Dr. Peer Reviewer",
+        passwordHash: "$2b$10$wE9l1yKk6G1w1M3u0k5n8.m2Z2u6K3s2d5x4c6v8b0n2m4q6w8e0",
+        roles: ["REVIEWER"],
+      },
+    });
+  }
+  const reviewerId = reviewer.id;
 
   const authorUsers = [];
   for (const aData of AUTHORS) {
@@ -1057,12 +1069,14 @@ async function main() {
       if (reviewerId) {
         await prisma.review.upsert({
           where: {
-            submissionId_reviewerId: {
+            submissionId_reviewerId_round: {
               submissionId: submission.id,
               reviewerId: reviewerId,
+              round: 1,
             },
           },
           update: {
+            round: 1,
             recommendation: "ACCEPT",
             comments: `Rigorous double-blind peer review evaluation: The methodology is sound, experimental benchmarks are reproducible, and the contribution is highly impactful for ${journalData.title}. Recommended for immediate publication.`,
             submittedAt: new Date(publishedAt.getTime() - 7 * 86400000),
@@ -1070,6 +1084,7 @@ async function main() {
           create: {
             submissionId: submission.id,
             reviewerId: reviewerId,
+            round: 1,
             recommendation: "ACCEPT",
             comments: `Rigorous double-blind peer review evaluation: The methodology is sound, experimental benchmarks are reproducible, and the contribution is highly impactful for ${journalData.title}. Recommended for immediate publication.`,
             submittedAt: new Date(publishedAt.getTime() - 7 * 86400000),

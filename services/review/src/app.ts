@@ -109,9 +109,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
         return reply.code(409).send({ error: "REVIEWER_NOT_ELIGIBLE" });
       }
 
+      const round = parsed.data.round ?? 1;
       const existing = await reviews.list({
         submissionId: submission.id,
         reviewerId: parsed.data.reviewerId,
+        round,
       });
       if (existing.length > 0) {
         return reply.code(409).send({ error: "REVIEWER_ALREADY_ASSIGNED" });
@@ -120,6 +122,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       const review = await reviews.create({
         submissionId: submission.id,
         reviewerId: parsed.data.reviewerId,
+        round,
         dueAt: parsed.data.dueAt,
       });
 
@@ -130,6 +133,42 @@ export function buildApp(options: AppOptions): FastifyInstance {
       });
 
       return reply.code(201).send({ review });
+    },
+  );
+
+  app.get<{ Params: { submissionId: string } }>(
+    "/v1/submissions/:submissionId/author-reviews",
+    { onRequest: [app.authenticate] },
+    async (request, reply) => {
+      const submission = await reviews.findSubmission(request.params.submissionId);
+      if (!submission) {
+        return reply.code(404).send({ error: "SUBMISSION_NOT_FOUND" });
+      }
+
+      const isAuthor = submission.authorId === request.user.sub;
+      const isEditor =
+        hasAnyRole(request.user, "EDITOR") &&
+        (await reviews.isJournalEditor(submission.journalId, request.user.sub));
+      const isAllowed = isAuthor || isEditor || isAdmin(request.user);
+
+      if (!isAllowed) {
+        return reply.code(403).send({ error: "FORBIDDEN" });
+      }
+
+      const allReviews = await reviews.list({ submissionId: submission.id });
+      // Only include reviews that have actually been submitted, and redact reviewerId for blind review integrity
+      const submittedReviews = allReviews.filter((r) => r.submittedAt !== null);
+      const authorReviews = submittedReviews.map((r) => ({
+        id: r.id,
+        submissionId: r.submissionId,
+        round: r.round,
+        recommendation: r.recommendation,
+        comments: r.comments,
+        submittedAt: r.submittedAt,
+        createdAt: r.createdAt,
+      }));
+
+      return reply.send({ reviews: authorReviews });
     },
   );
 

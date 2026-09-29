@@ -137,6 +137,19 @@ describe("api gateway", () => {
     });
   });
 
+  it("routes author reviews to the review service despite the /submissions path", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/submissions/abc/author-reviews",
+      headers: { authorization: "Bearer t" },
+    });
+    expect(res.json()).toMatchObject({
+      service: "review",
+      url: "/v1/submissions/abc/author-reviews",
+      authorization: "Bearer t",
+    });
+  });
+
   it("exposes notification reads but not the internal write endpoint", async () => {
     const read = await app.inject({ method: "GET", url: "/api/notifications" });
     expect(read.json()).toMatchObject({ service: "notification", url: "/v1/notifications" });

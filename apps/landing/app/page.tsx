@@ -704,7 +704,7 @@ function Footer() {
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 sm:flex-row">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} RPOS. All rights reserved.
+            Copyright © AalgoLabs (OPC) PVT. LTD. All rights reserved.
           </p>
           <p className="text-xs text-muted-foreground">
             Built with ❤️ for the research community

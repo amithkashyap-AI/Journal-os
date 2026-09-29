@@ -30,7 +30,7 @@ export interface AppOptions {
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
-  const app = Fastify({ logger: options.logger ?? false });
+  const app = Fastify({ logger: options.logger ?? false, trustProxy: true });
   const { upstreams } = options;
   const ipMax = options.rateLimitMax ?? 300;
   const apiKeyMax = options.apiKeyRateLimitMax ?? 60;
@@ -51,6 +51,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
   // Internal-only headers must never cross the public boundary.
   app.addHook("onRequest", async (request) => {
     delete request.headers["x-internal-secret"];
+    if (request.raw.headers) {
+      delete request.raw.headers["x-internal-secret"];
+    }
+  });
+  app.addHook("preHandler", async (request) => {
+    delete request.headers["x-internal-secret"];
+    if (request.raw.headers) {
+      delete request.raw.headers["x-internal-secret"];
+    }
   });
 
   app.get("/health", async () => ({
@@ -106,26 +115,54 @@ export function buildApp(options: AppOptions): FastifyInstance {
   // with /submissions; forward it explicitly so the prefix proxy above does
   // not send it to the submission service.
   async function forwardPost(request: FastifyRequest, reply: FastifyReply, targetUrl: string) {
-    const res = await fetch(targetUrl, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(request.headers.authorization
-          ? { authorization: request.headers.authorization }
-          : {}),
-      },
-      body: JSON.stringify(request.body ?? {}),
-    });
-    const body = await res.text();
-    return reply
-      .code(res.status)
-      .header("content-type", res.headers.get("content-type") ?? "application/json")
-      .send(body);
+    try {
+      const res = await fetch(targetUrl, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(request.headers.authorization
+            ? { authorization: request.headers.authorization }
+            : {}),
+        },
+        body: JSON.stringify(request.body ?? {}),
+        signal: AbortSignal.timeout(10000),
+      });
+      const body = await res.text();
+      return reply
+        .code(res.status)
+        .header("content-type", res.headers.get("content-type") ?? "application/json")
+        .send(body);
+    } catch {
+      return reply.code(504).send({ error: "GATEWAY_TIMEOUT" });
+    }
   }
 
   app.post<{ Params: { id: string } }>("/api/submissions/:id/reviews", async (request, reply) =>
     forwardPost(request, reply, `${upstreams.review}/v1/submissions/${request.params.id}/reviews`),
   );
+
+  app.get<{ Params: { id: string } }>("/api/submissions/:id/author-reviews", async (request, reply) => {
+    try {
+      const res = await fetch(
+        `${upstreams.review}/v1/submissions/${request.params.id}/author-reviews`,
+        {
+          headers: {
+            ...(request.headers.authorization
+              ? { authorization: request.headers.authorization }
+              : {}),
+          },
+          signal: AbortSignal.timeout(10000),
+        },
+      );
+      const body = await res.text();
+      return reply
+        .code(res.status)
+        .header("content-type", res.headers.get("content-type") ?? "application/json")
+        .send(body);
+    } catch {
+      return reply.code(504).send({ error: "GATEWAY_TIMEOUT" });
+    }
+  });
 
   // Mark-read is a user-scoped write and safe to expose; only the internal
   // notification-creation POST stays blocked (the GET-only proxy above).

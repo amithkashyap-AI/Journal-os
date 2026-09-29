@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import fastifyJwt from "@fastify/jwt";
 import { z } from "zod";
@@ -82,7 +83,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   // Service-to-service endpoint: creates the notification(s) and attempts delivery.
   app.post("/v1/notifications", async (request, reply) => {
-    if (request.headers["x-internal-secret"] !== options.internalSecret) {
+    const secretHeader = request.headers["x-internal-secret"];
+    const expectedSecret = options.internalSecret;
+    const isValid =
+      typeof secretHeader === "string" &&
+      secretHeader.length === expectedSecret.length &&
+      timingSafeEqual(Buffer.from(secretHeader), Buffer.from(expectedSecret));
+    if (!isValid) {
       return reply.code(401).send({ error: "UNAUTHORIZED" });
     }
 

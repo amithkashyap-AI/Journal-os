@@ -65,11 +65,30 @@ export function registerDiscoveryRoutes(app: FastifyInstance, options: AppOption
     return {journal, evidence, publication, context};
   }
   app.get("/v1/journals/discovery", async () => {
+    if (store.listDiscoveryJournals) {
+      return { journals: await store.listDiscoveryJournals() };
+    }
     const journals = await store.listJournals();
-    return {journals: await Promise.all(journals.map(async journal => ({...journal,
-      publication: await publicProfile(journal.id),
-      indexing: (await store.listEvidence(journal.id)).map(({source, status, quartile, indexYear, subjectCategory, checkedAt, coverageStartYear, coverageEndYear}) => ({source, status, quartile, indexYear, subjectCategory, checkedAt, coverageStartYear, coverageEndYear}))
-    })))};
+    return {
+      journals: await Promise.all(
+        journals.map(async (journal) => ({
+          ...journal,
+          publication: await publicProfile(journal.id),
+          indexing: (await store.listEvidence(journal.id)).map(
+            ({ source, status, quartile, indexYear, subjectCategory, checkedAt, coverageStartYear, coverageEndYear }) => ({
+              source,
+              status,
+              quartile,
+              indexYear,
+              subjectCategory,
+              checkedAt,
+              coverageStartYear,
+              coverageEndYear,
+            }),
+          ),
+        })),
+      ),
+    };
   });
   app.get<{Params: {id: string}}>("/v1/journals/public/:id", async (request, reply) => {
     const data = await snapshot(request.params.id);

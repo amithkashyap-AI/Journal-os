@@ -57,6 +57,10 @@ function DashboardShellInner({
         </TopBar>
 
         <main className="animate-in overflow-x-hidden p-4 sm:p-6">{children}</main>
+
+        <footer className="border-t border-border/40 py-4 px-6 text-center text-xs text-muted-foreground">
+          Copyright © AalgoLabs (OPC) PVT. LTD. All rights reserved.
+        </footer>
       </div>
     </div>
   );

@@ -67,7 +67,9 @@ test('supports searching conference proceedings and venueType filtering', async 
     type: 'proceedings-article'
   };
 
+  let queriedBibliographic = '';
   const result = await searchCrossrefJournals('CVPR', async (url) => {
+    queriedBibliographic = new URL(url).searchParams.get('query.bibliographic') ?? '';
     if (String(url).includes('proceedings-article')) {
       return Response.json({ message: { items: [conference] } });
     }
@@ -79,5 +81,7 @@ test('supports searching conference proceedings and venueType filtering', async 
   assert.equal(result[0].title, 'IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR 2023)');
   assert.equal(result[0].location, 'Vancouver, Canada');
   assert.deepEqual(result[0].isbns, ['978-1-6654-8742-0']);
+  assert.equal(queriedBibliographic, 'CVPR Computer Vision and Pattern Recognition');
 });
+
 

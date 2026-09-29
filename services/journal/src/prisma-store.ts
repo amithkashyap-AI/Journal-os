@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getPrisma } from "@rpos/database";
 import type { UserRole } from "@rpos/types";
 import type {
@@ -6,6 +7,7 @@ import type {
   JournalAssessment,
   CreateJournalData,
   CreatePublisherData,
+  JournalDiscoveryItem,
   JournalStore,
   JournalWithPublisher,
   MemberCandidate,
@@ -58,6 +60,37 @@ export class PrismaJournalStore implements JournalStore {
     return journals.map(flatten);
   }
 
+  async listDiscoveryJournals(): Promise<JournalDiscoveryItem[]> {
+    const records = await this.db.journal.findMany({
+      include: {
+        publisher: { select: { name: true } },
+        publicationProfile: true,
+        indexing: { orderBy: { source: "asc" } },
+      },
+      orderBy: { title: "asc" },
+    });
+    return records.map((record) => {
+      const { publisher, publicationProfile, indexing, ...rest } = record;
+      return {
+        ...rest,
+        publisherName: publisher.name,
+        publication: publicationProfile
+          ? (({ verifiedBy: _v, ...p }) => p)(publicationProfile)
+          : null,
+        indexing: indexing.map((e) => ({
+          source: e.source,
+          status: e.status,
+          quartile: e.quartile,
+          indexYear: e.indexYear,
+          subjectCategory: e.subjectCategory,
+          checkedAt: e.checkedAt,
+          coverageStartYear: e.coverageStartYear,
+          coverageEndYear: e.coverageEndYear,
+        })),
+      };
+    });
+  }
+
   async findJournalById(id: string): Promise<JournalWithPublisher | null> {
     const journal = await this.db.journal.findUnique({
       where: { id },
@@ -103,15 +136,23 @@ export class PrismaJournalStore implements JournalStore {
   }
 
   async findApiKeyByValue(key: string): Promise<StoredApiKey | null> {
-    return this.db.apiKey.findUnique({ where: { key } });
+    const keyHash = createHash("sha256").update(key).digest("hex");
+    return (
+      (await this.db.apiKey.findUnique({ where: { key: keyHash } })) ??
+      (await this.db.apiKey.findUnique({ where: { key } }))
+    );
   }
 
   async createApiKey(publisherId: string, key: string): Promise<StoredApiKey> {
-    return this.db.apiKey.create({ data: { publisherId, key } });
+    const keyHash = createHash("sha256").update(key).digest("hex");
+    const created = await this.db.apiKey.create({ data: { publisherId, key: keyHash } });
+    return { ...created, key };
   }
 
   async regenerateApiKey(publisherId: string, key: string): Promise<StoredApiKey> {
-    return this.db.apiKey.update({ where: { publisherId }, data: { key, enabled: true } });
+    const keyHash = createHash("sha256").update(key).digest("hex");
+    const updated = await this.db.apiKey.update({ where: { publisherId }, data: { key: keyHash, enabled: true } });
+    return { ...updated, key };
   }
 
   async setApiKeyEnabled(publisherId: string, enabled: boolean): Promise<StoredApiKey> {

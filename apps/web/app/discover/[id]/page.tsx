@@ -446,6 +446,11 @@ export default async function JournalPage({
             </div>
           )}
         </section>
+
+        {/* Public Detail Footer */}
+        <footer className="mt-12 border-t border-[#dce5ec] pt-6 pb-4 text-center text-xs text-[#5a6e85]">
+          Copyright © AalgoLabs (OPC) PVT. LTD. All rights reserved.
+        </footer>
       </div>
     </div>
   );

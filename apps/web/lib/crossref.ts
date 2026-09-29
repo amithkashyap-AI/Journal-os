@@ -15,6 +15,43 @@ export interface CrossrefJournal {
 
 export interface SearchOptions {
   venueType?: VenueTypeFilter;
+  bypassCache?: boolean;
+}
+
+const CONFERENCE_ACRONYMS: Record<string, string> = {
+  cvpr: "Computer Vision and Pattern Recognition",
+  neurips: "Neural Information Processing Systems",
+  nips: "Neural Information Processing Systems",
+  iclr: "International Conference on Learning Representations",
+  icml: "International Conference on Machine Learning",
+  kdd: "Knowledge Discovery and Data Mining",
+  acl: "Association for Computational Linguistics",
+  emnlp: "Empirical Methods in Natural Language Processing",
+  naacl: "North American Chapter of the Association for Computational Linguistics",
+  sigcomm: "ACM SIGCOMM",
+  infocom: "IEEE INFOCOM",
+  mobicom: "ACM MobiCom",
+  sigmod: "ACM SIGMOD",
+  vldb: "Very Large Data Bases",
+  icse: "International Conference on Software Engineering",
+  fse: "Foundations of Software Engineering",
+  sosp: "Symposium on Operating Systems Principles",
+  osdi: "Operating Systems Design and Implementation",
+  chi: "Conference on Human Factors in Computing Systems",
+  uist: "User Interface Software and Technology",
+};
+
+interface CacheEntry {
+  timestamp: number;
+  data: CrossrefJournal[];
+}
+
+const crossrefCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_CACHE_ENTRIES = 300;
+
+export function clearCrossrefCache(): void {
+  crossrefCache.clear();
 }
 
 const cleanTitle = (value: string) =>
@@ -107,6 +144,15 @@ export async function searchCrossrefJournals(
   const cleaned = query.trim().slice(0, 200).replace(/\s*\([a-z0-9-]{2,15}\)\.?$/i, "").trim();
   if (!cleaned || !/[\p{L}\p{N}]/u.test(cleaned)) return [];
 
+  const shouldCache = !options.bypassCache && request === fetch;
+  const cacheKey = `${cleaned.toLowerCase()}:${venueType}`;
+  if (shouldCache) {
+    const cached = crossrefCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
+    }
+  }
+
   const issn = cleaned.match(/^\d{4}-?\d{3}[\dx]$/i);
   const normalizedIssn = issn ? cleaned.replace(/-/, "").toUpperCase().replace(/^(.{4})/, "$1-") : null;
 
@@ -140,7 +186,7 @@ export async function searchCrossrefJournals(
       ),
     ];
     if (!issns.length) return [];
-    return [
+    const exactResult: CrossrefJournal[] = [
       {
         title: record.title,
         publisher: typeof record.publisher === "string" ? record.publisher : "Publisher not provided",
@@ -150,6 +196,10 @@ export async function searchCrossrefJournals(
         venueType: "journal",
       },
     ];
+    if (shouldCache) {
+      crossrefCache.set(cacheKey, { timestamp: Date.now(), data: exactResult });
+    }
+    return exactResult;
   }
 
   // General query: fetch journals and/or conference proceedings
@@ -198,8 +248,10 @@ export async function searchCrossrefJournals(
   const conferencePromise = fetchConferences
     ? (async (): Promise<CrossrefJournal[]> => {
         try {
+          const expansion = CONFERENCE_ACRONYMS[cleaned.toLowerCase()];
+          const bibQuery = expansion ? `${cleaned} ${expansion}` : cleaned;
           const params = new URLSearchParams({
-            "query.bibliographic": cleaned,
+            "query.bibliographic": bibQuery,
             filter: "type:proceedings-article",
             rows: "12",
             select: "DOI,title,container-title,event,ISSN,ISBN,publisher,type",
@@ -266,7 +318,17 @@ export async function searchCrossrefJournals(
 
   const allRecords = [...groupedJournals, ...groupedConferences];
 
-  return allRecords.sort(
+  const sorted = allRecords.sort(
     (a, b) => matchRank[a.match] - matchRank[b.match] || a.title.localeCompare(b.title)
   );
+
+  if (shouldCache && sorted.length > 0) {
+    if (crossrefCache.size >= MAX_CACHE_ENTRIES) {
+      const oldestKey = crossrefCache.keys().next().value;
+      if (oldestKey) crossrefCache.delete(oldestKey);
+    }
+    crossrefCache.set(cacheKey, { timestamp: Date.now(), data: sorted });
+  }
+
+  return sorted;
 }

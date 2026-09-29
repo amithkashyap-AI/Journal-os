@@ -90,6 +90,40 @@ export function cosine(a: number[], b: number[]): number {
   return dot / Math.sqrt(aa * bb);
 }
 
+const STOP_WORDS = new Set([
+  "a", "an", "the", "of", "and", "in", "for", "on", "to", "with", "at", "by", "from",
+  "journal", "proceedings", "conference", "international", "transactions", "studies", "research"
+]);
+
+export function lexicalOverlapScore(topic: string, candidate: JournalCandidate): number {
+  const queryTerms = topic
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .split(" ")
+    .filter((t) => t.length >= 2 && !STOP_WORDS.has(t));
+  if (!queryTerms.length) return 0;
+
+  const docText = `${candidate.title} ${candidate.article} ${candidate.publisher} ${candidate.location ?? ""}`
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ");
+
+  const docWords = new Set(docText.split(" ").filter(Boolean));
+  let matched = 0;
+  for (const term of queryTerms) {
+    if (docWords.has(term) || (term.length >= 4 && [...docWords].some((w) => w.startsWith(term)))) {
+      matched++;
+    }
+  }
+
+  const overlapRatio = matched / queryTerms.length;
+  const cleanTopic = topic.trim().toLowerCase();
+  const cleanTitle = candidate.title.trim().toLowerCase();
+  const exactBonus = cleanTitle.includes(cleanTopic) || cleanTopic.includes(cleanTitle) ? 0.35 : 0;
+  return Math.min(1, overlapRatio * 0.65 + exactBonus);
+}
+
 export function distinctJournals(records: JournalCandidate[]): JournalCandidate[] {
   const seen = new Set<string>();
   return records
@@ -110,11 +144,67 @@ export function distinctJournals(records: JournalCandidate[]): JournalCandidate[
 
 /** Retrieve real publications first. The model ranks source records; it cannot invent journals or conferences. */
 export class JournalSearch {
+  private readonly embeddingCache = new Map<string, number[]>();
+  private readonly MAX_CACHE = 2000;
+
   constructor(
     private readonly baseUrl: string,
     private readonly model = "nomic-embed-text",
     private readonly request: typeof fetch = fetch
   ) {}
+
+  private async fetchEmbeddings(inputs: string[]): Promise<number[][]> {
+    const uncachedIndices: number[] = [];
+    const uncachedInputs: string[] = [];
+    const results: (number[] | undefined)[] = new Array(inputs.length);
+
+    for (let i = 0; i < inputs.length; i++) {
+      const cached = this.embeddingCache.get(inputs[i]!);
+      if (cached) {
+        results[i] = cached;
+      } else {
+        uncachedIndices.push(i);
+        uncachedInputs.push(inputs[i]!);
+      }
+    }
+
+    if (uncachedInputs.length > 0) {
+      const result = await this.request(`${this.baseUrl}/api/embed`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: AbortSignal.timeout(60000),
+        body: JSON.stringify({
+          model: this.model,
+          input: uncachedInputs,
+          truncate: false,
+          keep_alive: "30m",
+        }),
+      });
+
+      if (!result.ok) throw new Error("Embedding service unavailable");
+      const parsed = z
+        .object({ embeddings: z.array(z.array(z.number().finite()).min(1)) })
+        .parse(await result.json());
+
+      if (parsed.embeddings.length !== uncachedInputs.length) {
+        throw new Error("Invalid embedding count from service");
+      }
+
+      for (let j = 0; j < uncachedInputs.length; j++) {
+        const emb = parsed.embeddings[j]!;
+        const originalIndex = uncachedIndices[j]!;
+        results[originalIndex] = emb;
+
+        if (this.embeddingCache.size >= this.MAX_CACHE) {
+          const oldestKey = this.embeddingCache.keys().next().value;
+          if (oldestKey) this.embeddingCache.delete(oldestKey);
+        }
+        this.embeddingCache.set(uncachedInputs[j]!, emb);
+      }
+    }
+
+    return results as number[][];
+  }
 
   async search(
     topic: string,
@@ -154,40 +244,35 @@ export class JournalSearch {
       };
 
     try {
-      const result = await this.request(`${this.baseUrl}/api/embed`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        signal: AbortSignal.timeout(60000),
-        body: JSON.stringify({
-          model: this.model,
-          input: [
-            `search_query: ${topic}`,
-            ...candidates.map(
-              (c) =>
-                `search_document: ${c.article.slice(0, 1500)}. Venue (${c.venueType ?? "journal"}): ${c.title.slice(0, 300)}`
-            ),
-          ],
-          truncate: false,
-          keep_alive: "10m",
-        }),
-      });
+      const inputs = [
+        `search_query: ${topic}`,
+        ...candidates.map(
+          (c) =>
+            `search_document: ${c.article.slice(0, 1500)}. Venue (${c.venueType ?? "journal"}): ${c.title.slice(0, 300)}`
+        ),
+      ];
 
-      if (!result.ok) throw new Error("Embedding service unavailable");
-      const parsed = z
-        .object({ embeddings: z.array(z.array(z.number().finite()).min(1)) })
-        .parse(await result.json());
-      if (parsed.embeddings.length !== candidates.length + 1) throw new Error("Invalid embedding count");
+      const embeddings = await this.fetchEmbeddings(inputs);
+      const queryEmb = embeddings[0]!;
 
       const artifact = await loadTrainedRanker(this.baseUrl, this.model, this.request);
-      const ranker = artifact?.dimensions === parsed.embeddings[0]!.length ? artifact : null;
+      const ranker = artifact?.dimensions === queryEmb.length ? artifact : null;
 
       const ranked = candidates
-        .map((candidate, i) => ({
-          candidate,
-          score: ranker
-            ? trainedScore(parsed.embeddings[0]!, parsed.embeddings[i + 1]!, ranker.weights)
-            : cosine(parsed.embeddings[0]!, parsed.embeddings[i + 1]!),
-        }))
+        .map((candidate, i) => {
+          const docEmb = embeddings[i + 1]!;
+          const denseScore = ranker
+            ? trainedScore(queryEmb, docEmb, ranker.weights)
+            : cosine(queryEmb, docEmb);
+          const normalizedDense = (denseScore + 1) / 2;
+          const lexicalScore = lexicalOverlapScore(topic, candidate);
+          const hybridScore = 0.75 * normalizedDense + 0.25 * lexicalScore;
+
+          return {
+            candidate,
+            score: hybridScore,
+          };
+        })
         .sort((a, b) => b.score - a.score)
         .map((c) => c.candidate);
 
