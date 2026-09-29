@@ -1,0 +1,57 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "app": {
+      "root": ".",
+      "runtime": "node"
+    },
+    "landing": {
+      "root": "apps/landing",
+      "framework": "nextjs"
+    },
+    "web": {
+      "root": "apps/web",
+      "framework": "nextjs"
+    },
+    "ai": {
+      "root": "services/ai",
+      "framework": "fastify"
+    },
+    "api-gateway": {
+      "root": "services/api-gateway",
+      "framework": "fastify"
+    },
+    "auth": {
+      "root": "services/auth",
+      "framework": "fastify"
+    },
+    "file-storage": {
+      "root": "services/file-storage",
+      "framework": "fastify"
+    },
+    "journal": {
+      "root": "services/journal",
+      "framework": "fastify"
+    },
+    "notification": {
+      "root": "services/notification",
+      "framework": "fastify"
+    },
+    "review": {
+      "root": "services/review",
+      "framework": "fastify"
+    },
+    "submission": {
+      "root": "services/submission",
+      "framework": "fastify"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "app"
+      }
+    }
+  ]
+}
