@@ -70,10 +70,10 @@ You can deploy using either **Option A (Git)** or **Option B (File Manager Zip)*
 5. Right-click the uploaded zip file and select **Extract** directly into `public_html`.
 
 ### Option B: Via Git in hPanel
-1. Push your repository to your private GitHub or GitLab account.
+1. Your repository is now live at `https://github.com/amithkashyap2011-cmyk/research-publishing-os`.
 2. In hPanel, go to **Advanced** → **Git**.
 3. Create a repository connection:
-   - **Repository URL**: `https://github.com/your-username/research-publishing-os.git`
+   - **Repository URL**: `https://github.com/amithkashyap2011-cmyk/research-publishing-os.git`
    - **Branch**: `main`
    - **Install directory**: `public_html`
 4. Click **Deploy**.
