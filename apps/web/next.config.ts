@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  devIndicators: false,
   webpack: (config) => {
     config.watchOptions = {
       ignored: ["**/node_modules/**", "**/.git/**", "**/.next/**"],

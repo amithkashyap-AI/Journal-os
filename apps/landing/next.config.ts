@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  devIndicators: false,
   webpack: (config: any) => {
     config.watchOptions = {
       ignored: ["**/node_modules/**", "**/.git/**", "**/.next/**"],

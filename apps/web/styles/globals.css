@@ -412,3 +412,14 @@ body,
 .animate-pulse-teal {
   animation: pulse-teal-glow 4.2s ease-in-out infinite;
 }
+
+/* ─── Hide Next.js Dev Indicator Badge ─────────────────────────────────────── */
+nextjs-portal,
+[data-nextjs-dev-indicator],
+#nextjs-dev-indicator,
+div[data-nextjs-toast="true"] {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
