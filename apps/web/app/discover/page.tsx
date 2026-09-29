@@ -19,7 +19,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { INDEX_NAMES, publicJournals } from "../../lib/discovery";
-import { searchCrossrefJournals } from "../../lib/crossref";
+import { searchCrossrefJournals, type VenueTypeFilter } from "../../lib/crossref";
 import { searchRelevance } from "../../lib/search-relevance";
 
 const INDEX_KEYS = Object.keys(INDEX_NAMES);
@@ -69,12 +69,18 @@ export default async function DiscoverPage({
   }
   const filtersValid = validAdvancedFilters(filters);
 
+  const rawVenue = value("venueType");
+  const venueType: VenueTypeFilter =
+    rawVenue === "journal" || rawVenue === "conference"
+      ? rawVenue
+      : "all";
+
   const searchExternal = !!query && mode === "live";
   let external: Awaited<ReturnType<typeof searchCrossrefJournals>> = [];
   let externalUnavailable = false;
   if (searchExternal) {
     try {
-      external = await searchCrossrefJournals(query);
+      external = await searchCrossrefJournals(query, fetch, { venueType });
     } catch {
       externalUnavailable = true;
     }
@@ -181,10 +187,11 @@ export default async function DiscoverPage({
           className="relative z-10 -mt-14 rounded-3xl border border-[#d7e2ec] bg-white p-6 shadow-2xl shadow-[#112b46]/08 sm:p-9"
         >
           <JournalSearchForm
-            key={JSON.stringify({ query, filters, mode })}
+            key={JSON.stringify({ query, filters, mode, venueType })}
             query={query}
             initialFilters={filters}
             initialMode={mode}
+            initialVenueType={venueType}
             currentYear={new Date().getFullYear()}
           />
         </section>
@@ -252,7 +259,7 @@ export default async function DiscoverPage({
             <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-[#d7e2ec] pb-4">
               <div>
                 <h2 className="text-2xl font-bold tracking-tight text-[#112b46]">
-                  Crossref Journal Registry Search
+                  Crossref Journal &amp; Conference Registry Search
                   {searchExternal && !externalUnavailable && (
                     <span className="ml-3 text-sm font-semibold text-[#087f8c] rounded-full bg-[#e6f5f3] px-3 py-1 border border-[#b2e5df]">
                       {external.length} result{external.length === 1 ? "" : "s"}
@@ -267,14 +274,14 @@ export default async function DiscoverPage({
 
             {externalUnavailable ? (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
-                Crossref registry could not be reached right now. Please retry in a moment; this does not mean the journal does not exist.
+                Crossref registry could not be reached right now. Please retry in a moment; this does not mean the journal or conference does not exist.
               </div>
             ) : external.length === 0 ? (
               <div className="rounded-2xl border border-[#d7e2ec] bg-white p-10 text-center shadow-xs">
                 <ScanSearch className="mx-auto size-12 text-[#5a6e85]/60" />
                 <p className="mt-4 text-base font-bold text-[#112b46]">No Crossref records matched &quot;{query}&quot;</p>
                 <p className="mt-1 text-xs text-[#5a6e85]">
-                  Try searching with the full journal title or the 8-digit ISSN (e.g. 0028-0836).
+                  Try searching with the full journal title, conference name/acronym (e.g. CVPR, INFOCOM), 8-digit ISSN, or ISBN.
                 </p>
               </div>
             ) : (

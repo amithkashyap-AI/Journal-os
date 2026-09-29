@@ -3,7 +3,7 @@ import type { PublicationProfile } from "./advanced-search";
 import { JOURNAL_API } from "./api";
 import type { JournalDto } from "./catalog";
 export interface Evidence { coverageStartYear?: number | null; coverageEndYear?: number | null; source: string; status: string; sourceUrl: string; checkedAt: string; notes: string; quartile?: "Q1" | "Q2" | "Q3" | "Q4" | null; indexYear?: number | null; subjectCategory?: string | null }
-export interface JournalDetail { publication: PublicationProfile | null; journal: JournalDto; evidence: Evidence[]; assessment: {text: string; generatedAt: string; model: string; stale: boolean} | null }
+export interface JournalDetail { publication: PublicationProfile | null; journal: JournalDto; evidence: Evidence[]; assessment: {text: string; generatedAt: string; model: string; stale: boolean} | null; editors?: { userId: string; name: string; email: string }[] }
 export interface DiscoveryJournal extends JournalDto { publication?: PublicationProfile | null; indexing: Pick<Evidence, "source" | "status" | "quartile" | "indexYear" | "subjectCategory" | "checkedAt" | "coverageStartYear" | "coverageEndYear">[] }
 export async function publicJournals(): Promise<DiscoveryJournal[]> {
   try {

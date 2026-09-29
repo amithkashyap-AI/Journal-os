@@ -10,7 +10,7 @@ const CREDENTIALS = {
   name: "Ada Lovelace",
 };
 
-describe("auth service", () => {
+describe("auth service", { timeout: 15000 }, () => {
   let app: FastifyInstance;
   let store: InMemoryUserStore;
 

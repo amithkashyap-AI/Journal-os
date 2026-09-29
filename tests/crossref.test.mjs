@@ -54,3 +54,30 @@ test('normalizes punctuation and ampersands without treating reordered titles as
   ]}}));
   assert.deepEqual(result.map(record => record.match), ['title', 'similar']);
 });
+
+test('supports searching conference proceedings and venueType filtering', async () => {
+  const conference = {
+    DOI: '10.1109/cvpr.2023.0001',
+    title: ['Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition'],
+    'container-title': ['CVPR 2023 Proceedings'],
+    event: { name: 'IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR 2023)', location: 'Vancouver, Canada' },
+    ISBN: ['978-1-6654-8742-0'],
+    ISSN: ['2575-7075'],
+    publisher: 'IEEE',
+    type: 'proceedings-article'
+  };
+
+  const result = await searchCrossrefJournals('CVPR', async (url) => {
+    if (String(url).includes('proceedings-article')) {
+      return Response.json({ message: { items: [conference] } });
+    }
+    return Response.json({ message: { items: [] } });
+  }, { venueType: 'conference' });
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0].venueType, 'conference');
+  assert.equal(result[0].title, 'IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR 2023)');
+  assert.equal(result[0].location, 'Vancouver, Canada');
+  assert.deepEqual(result[0].isbns, ['978-1-6654-8742-0']);
+});
+

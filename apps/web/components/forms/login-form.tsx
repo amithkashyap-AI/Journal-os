@@ -27,10 +27,13 @@ interface DevQuickLogin {
 }
 
 const DEV_QUICK_LOGINS: DevQuickLogin[] = [
-  { role: "Owner", badge: "Superadmin", email: "superadmin@rpos.dev", desc: "Full system & journals" },
-  { role: "Editor", badge: "Editorial", email: "editor@rpos.dev", desc: "Manuscripts & peer review" },
-  { role: "Author", badge: "Researcher", email: "author@rpos.dev", desc: "Submissions & tracking" },
-  { role: "Reviewer", badge: "Academic", email: "reviewer@rpos.dev", desc: "Peer review assignments" },
+  { role: "Superadmin", badge: "SUPERADMIN", email: "superadmin@rpos.dev", desc: "Full system authority & users" },
+  { role: "Admin", badge: "ADMIN", email: "admin@rpos.dev", desc: "Platform analytics & indexing" },
+  { role: "Publisher", badge: "PUBLISHER", email: "publisher@rpos.dev", desc: "Journals & production" },
+  { role: "Editor", badge: "EDITOR", email: "editor@rpos.dev", desc: "Editorial decisions & queue" },
+  { role: "Reviewer", badge: "REVIEWER", email: "reviewer@rpos.dev", desc: "Peer review assignments" },
+  { role: "Author", badge: "AUTHOR", email: "author@rpos.dev", desc: "Submissions & drafts" },
+  { role: "Reader", badge: "READER", email: "reader@rpos.dev", desc: "Public journal discovery" },
 ];
 
 export function LoginForm({ next }: { next?: string }) {
@@ -84,14 +87,17 @@ export function LoginForm({ next }: { next?: string }) {
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {DEV_QUICK_LOGINS.map((item) => {
+            {DEV_QUICK_LOGINS.map((item, idx) => {
               const isSelected = activeDevRole === item.role;
+              const isLastOdd = idx === DEV_QUICK_LOGINS.length - 1 && DEV_QUICK_LOGINS.length % 2 !== 0;
               return (
                 <button
                   key={item.role}
                   type="button"
                   onClick={() => handleQuickLogin(item)}
                   className={`group relative text-left p-2.5 rounded-lg border transition-all duration-200 cursor-pointer ${
+                    isLastOdd ? "col-span-2" : ""
+                  } ${
                     isSelected
                       ? "border-teal-400 bg-teal-950/50 shadow-[0_0_15px_rgba(45,212,191,0.25)] ring-1 ring-teal-400/50"
                       : "border-slate-800/80 bg-slate-900/60 hover:border-teal-500/40 hover:bg-slate-800/60"

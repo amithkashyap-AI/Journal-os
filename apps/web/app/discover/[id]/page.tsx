@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicationSummary } from "../../../components/PublicationSummary";
 import { INDEX_NAMES, publicJournal } from "../../../lib/discovery";
+import { SUBMISSION_API } from "../../../lib/api";
+import type { SubmissionDto } from "../../../lib/dto";
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,6 +18,9 @@ import {
   XCircle,
   HelpCircle,
   FilePlus,
+  BookOpen,
+  UserCheck,
+  FileText,
 } from "lucide-react";
 
 export async function generateMetadata({
@@ -70,6 +75,20 @@ export default async function JournalPage({
   if (!data) notFound();
 
   const { journal, evidence, assessment } = data;
+
+  let publishedPapers: SubmissionDto[] = [];
+  try {
+    const pubRes = await fetch(`${SUBMISSION_API}/v1/submissions/published`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+    });
+    if (pubRes.ok) {
+      const pubData = (await pubRes.json()) as { submissions: SubmissionDto[] };
+      publishedPapers = (pubData.submissions || []).filter((s) => s.journalId === id);
+    }
+  } catch {
+    // Graceful fallback
+  }
 
   const STATUS_CONFIG: Record<
     string,
@@ -144,6 +163,15 @@ export default async function JournalPage({
                 <span className="text-white/40">·</span>
                 <span className="rounded-md border border-white/20 bg-white/10 px-2.5 py-0.5 font-mono text-xs text-white">
                   ISSN: {journal.issn}
+                </span>
+              </>
+            )}
+            {data.editors && data.editors.length > 0 && (
+              <>
+                <span className="text-white/40">·</span>
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-[#2dd4bf]/30 bg-[#2dd4bf]/10 px-2.5 py-0.5 text-xs text-[#5eead4] normal-case font-semibold">
+                  <UserCheck className="size-3.5 text-[#2dd4bf]" />
+                  Editor: {data.editors.map((e) => e.name).join(", ")}
                 </span>
               </>
             )}
@@ -278,6 +306,100 @@ export default async function JournalPage({
               );
             })}
           </div>
+        </section>
+
+        {/* Published Articles in this Journal Section */}
+        <section className="space-y-5">
+          <div className="border-b border-[#d7e2ec] pb-3.5 flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight text-[#112b46] flex items-center gap-2.5">
+                <BookOpen className="size-6 text-[#087f8c]" />
+                Published Articles in this Journal
+              </h2>
+              <p className="mt-1 text-xs text-[#5a6e85]">
+                Peer-reviewed research manuscripts published under open access with permanent minted DOIs.
+              </p>
+            </div>
+            <span className="rounded-full bg-[#e6f5f3] text-[#086b69] border border-[#a7dfd9] px-3.5 py-1 text-xs font-bold font-mono shadow-xs">
+              {publishedPapers.length} Published Article{publishedPapers.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          {publishedPapers.length === 0 ? (
+            <div className="rounded-2xl border border-[#d7e2ec] bg-white p-8 text-center text-xs text-[#5a6e85]">
+              <FileText className="mx-auto size-8 text-[#5a6e85]/60 mb-2" />
+              No peer-reviewed articles have been published in this volume yet. Submissions are currently open.
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {publishedPapers.map((paper) => (
+                <article
+                  key={paper.id}
+                  className="rounded-2xl border border-[#d7e2ec] bg-white p-6 shadow-xs hover:border-[#087f8c] hover:shadow-md transition-all group"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-[#f0f4f8] pb-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {paper.doi && (
+                        <a
+                          href={`https://doi.org/${paper.doi}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-mono text-xs font-bold text-[#087f8c] bg-[#e6f5f3] px-2.5 py-0.5 rounded border border-[#a7dfd9] hover:underline"
+                        >
+                          DOI: {paper.doi}
+                        </a>
+                      )}
+                      <span className="text-xs text-[#047857] font-semibold bg-[#ecfdf5] px-2 py-0.5 rounded-full border border-[#a7f3d0]">
+                        Peer-Reviewed & Published
+                      </span>
+                    </div>
+                    {paper.publishedAt && (
+                      <span className="text-xs text-[#5a6e85] font-mono flex items-center gap-1.5">
+                        <Calendar className="size-3.5 text-[#087f8c]" />
+                        Published {new Date(paper.publishedAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="mt-3 text-lg font-bold text-[#112b46] group-hover:text-[#087f8c] transition-colors leading-snug">
+                    <Link href={`/submissions/${paper.id}`} className="hover:underline">
+                      {paper.title}
+                    </Link>
+                  </h3>
+
+                  <p className="mt-2 text-xs leading-[1.618] text-[#5a6e85] line-clamp-3">
+                    {paper.abstract}
+                  </p>
+
+                  {paper.keywords && paper.keywords.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-1.5">
+                      {paper.keywords.map((kw) => (
+                        <span
+                          key={kw}
+                          className="rounded-md border border-[#d7e2ec] bg-[#f8fafc] px-2 py-0.5 font-mono text-[11px] text-[#5a6e85]"
+                        >
+                          #{kw}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-4 pt-3 border-t border-[#f0f4f8] flex items-center justify-between">
+                    <Link
+                      href={`/submissions/${paper.id}`}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#087f8c] hover:underline"
+                    >
+                      <span>Read Full Research Article</span>
+                      <ArrowRight className="size-3.5" />
+                    </Link>
+                    <span className="text-[11px] font-mono text-[#5a6e85]">
+                      Ref: #{paper.id.slice(0, 14)}
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* AI Journal Quality Assessment Section */}

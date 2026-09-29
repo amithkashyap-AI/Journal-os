@@ -7,6 +7,23 @@ export class PrismaFileStore implements FileStore {
   async isJournalEditor(fileId: string, userId: string): Promise<boolean> {
     return !!await this.db.submission.findFirst({where: {manuscriptUrl: `/v1/files/${fileId}`, journal: {editors: {some: {userId}}}}, select: {id: true}});
   }
+
+  async isPublisherOwnerOrMember(fileId: string, userId: string): Promise<boolean> {
+    return !!await this.db.submission.findFirst({
+      where: {
+        manuscriptUrl: `/v1/files/${fileId}`,
+        journal: {
+          publisher: {
+            OR: [
+              { ownerId: userId },
+              { members: { some: { userId } } },
+            ],
+          },
+        },
+      },
+      select: { id: true },
+    });
+  }
   async create(data: CreateFileData): Promise<StoredFile> {
     return this.db.fileObject.create({ data });
   }

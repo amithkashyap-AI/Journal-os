@@ -1,7 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { getPrisma } from '../../packages/database/dist/index.js';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+const prisma = getPrisma();
 
 const roles = ['ADMIN', 'PUBLISHER', 'EDITOR', 'REVIEWER', 'AUTHOR', 'READER'];
 

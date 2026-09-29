@@ -114,6 +114,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         file.ownerId === request.user.sub ||
         request.user.roles.some((role) => STAFF_ROLES.includes(role)) ||
         (request.user.roles.includes("EDITOR") && await files.isJournalEditor(file.id, request.user.sub)) ||
+        (request.user.roles.includes("PUBLISHER") && await files.isPublisherOwnerOrMember(file.id, request.user.sub)) ||
         (request.user.roles.includes("REVIEWER") &&
           (await files.isAssignedReviewer(file.id, request.user.sub)));
       if (!canRead) {

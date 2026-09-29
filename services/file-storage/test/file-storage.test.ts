@@ -94,6 +94,21 @@ describe("file-storage service", () => {
     });
     expect(admin.statusCode).toBe(200);
 
+    store.grantPublisher(id, "publisher-1");
+    const publisher = await app.inject({
+      method: "GET",
+      url: `/v1/files/${id}`,
+      headers: authHeader("publisher-1", ["PUBLISHER"]),
+    });
+    expect(publisher.statusCode).toBe(200);
+
+    const unassignedPublisher = await app.inject({
+      method: "GET",
+      url: `/v1/files/${id}`,
+      headers: authHeader("publisher-2", ["PUBLISHER"]),
+    });
+    expect(unassignedPublisher.statusCode).toBe(404);
+
     const stranger = await app.inject({
       method: "GET",
       url: `/v1/files/${id}`,

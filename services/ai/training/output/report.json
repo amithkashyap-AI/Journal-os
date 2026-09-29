@@ -1,0 +1,39 @@
+{
+  "generatedAt": "2026-09-29T05:28:05.614315+00:00",
+  "method": "pairwise logistic diagonal embedding reranker",
+  "labelType": "publication-venue proxy, not human suitability judgments",
+  "scope": "Closed 12-venue corpus across 3 fields; does not measure open-world search accuracy. Query DOI/title split; same venues appear in each split. Test candidates are training articles.",
+  "corpusArticles": 441,
+  "trainingQueries": 256,
+  "pairCount": 12288,
+  "validationQueries": 86,
+  "testQueries": 87,
+  "selectedStep": 200,
+  "baselineValidation": {
+    "mrr": 0.6555370985603545,
+    "top1VenueRecovery": 0.4186046511627907,
+    "recallAt5": 0.9651162790697675,
+    "queries": 86
+  },
+  "trainedValidation": {
+    "mrr": 0.672314507198228,
+    "top1VenueRecovery": 0.45348837209302323,
+    "recallAt5": 0.9534883720930233,
+    "queries": 86
+  },
+  "baselineTest": {
+    "mrr": 0.7166716425337115,
+    "top1VenueRecovery": 0.5287356321839081,
+    "recallAt5": 0.9770114942528736,
+    "queries": 87
+  },
+  "trainedTest": {
+    "mrr": 0.729123749813405,
+    "top1VenueRecovery": 0.5402298850574713,
+    "recallAt5": 0.9770114942528736,
+    "queries": 87
+  },
+  "promoted": true,
+  "modelDigest": "0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
+  "corpusSha256": "c73a14b57d4f1d89513a93003c24d3df34aa55333b986a9cc0f3b44982f7fb1e"
+}

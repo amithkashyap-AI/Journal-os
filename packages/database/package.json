@@ -20,6 +20,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
+    "seed": "node scripts/seed-dummy-data.mjs",
     "studio": "prisma studio",
     "clean": "rm -rf dist",
     "lint": "eslint ."

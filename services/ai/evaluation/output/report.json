@@ -1,27 +1,27 @@
 {
-  "generatedAt": "2026-09-28T11:51:49.633Z",
+  "generatedAt": "2026-09-29T06:00:12.106Z",
   "scope": "Operational smoke checks only. No human relevance labels; accuracy is not measured.",
   "cases": [
     {
       "topic": "machine learning for wireless network intrusion detection",
-      "elapsedMs": 12042,
-      "ranking": "local-embeddings",
+      "elapsedMs": 24296,
+      "ranking": "trained-local-ranker",
       "count": 8,
       "hasSourceLinks": true,
       "error": null
     },
     {
       "topic": "solar cell efficiency and perovskite materials",
-      "elapsedMs": 4846,
-      "ranking": "local-embeddings",
+      "elapsedMs": 7206,
+      "ranking": "trained-local-ranker",
       "count": 8,
       "hasSourceLinks": true,
       "error": null
     },
     {
       "topic": "biodiversity conservation in tropical forests",
-      "elapsedMs": 3938,
-      "ranking": "local-embeddings",
+      "elapsedMs": 4152,
+      "ranking": "trained-local-ranker",
       "count": 8,
       "hasSourceLinks": true,
       "error": null

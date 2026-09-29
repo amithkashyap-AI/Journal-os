@@ -14,24 +14,15 @@ import {
   Coins,
   Users,
   Key,
-  ShieldCheck,
-  TrendingUp,
-  FileText,
-  CheckCircle2,
   ArrowRight,
   ExternalLink,
   Plus,
-  Lock,
   Copy,
   Check,
   Layers,
-  Sparkles,
   Sliders,
   DollarSign,
-  Briefcase,
   Clock,
-  Eye,
-  RefreshCw,
   Search,
   BookOpen,
 } from "lucide-react";
@@ -74,6 +65,10 @@ const journalFormSchema = z.object({
   description: z.string().max(2000).optional(),
 });
 type JournalFormValues = z.infer<typeof journalFormSchema>;
+
+function mintOptimisticDoi(): string {
+  return `10.1000/rpos.${Date.now().toString().slice(-6)}`;
+}
 
 export function PublisherDashboardClient({
   initialPublishers,
@@ -165,7 +160,7 @@ export function PublisherDashboardClient({
       await performSubmissionAction(formData);
 
       // Optimistically move to recently published
-      const mintedDoi = `10.1000/rpos.${Date.now().toString().slice(-6)}`;
+      const mintedDoi = mintOptimisticDoi();
       setReadyList((prev) => prev.filter((s) => s.id !== submissionId));
       setPublishedList((prev) => [
         {

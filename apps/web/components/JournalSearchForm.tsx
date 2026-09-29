@@ -29,17 +29,20 @@ export function JournalSearchForm({
   query,
   initialFilters,
   initialMode,
+  initialVenueType = "all",
   currentYear,
 }: {
   query: string;
   initialFilters: AdvancedFilters;
   initialMode: "live" | "reviewed";
+  initialVenueType?: "all" | "journal" | "conference";
   currentYear: number;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [search, setSearch] = useState(query);
   const [mode, setMode] = useState(initialMode);
+  const [venueType, setVenueType] = useState<"all" | "journal" | "conference">(initialVenueType);
   const [filters, setFilters] = useState(initialFilters);
 
   const setFilter = (key: keyof AdvancedFilters, value: string) =>
@@ -54,7 +57,7 @@ export function JournalSearchForm({
         const data = new FormData(event.currentTarget);
         const params = new URLSearchParams();
         for (const [key, value] of data) {
-          if (typeof value === "string" && value.trim() && key !== "search-mode") {
+          if (typeof value === "string" && value.trim() && key !== "search-mode" && key !== "venue-filter") {
             params.set(key, value.trim());
           }
         }
@@ -63,13 +66,14 @@ export function JournalSearchForm({
       className="space-y-6"
     >
       <input type="hidden" name="mode" value={mode} />
+      {mode === "live" && <input type="hidden" name="venueType" value={venueType} />}
 
       {/* Segmented Mode Selector — Golden Ratio Pill Harmony */}
       <fieldset className="flex flex-wrap gap-2 border-b border-[#dce5ec] pb-5">
         <legend className="sr-only">Choose search mode</legend>
         {(
           [
-            ["live", "Find a journal (Live Crossref Registry)", Globe2],
+            ["live", "Find journals & conferences (Live Crossref Registry)", Globe2],
             ["reviewed", "Advanced directory search", SlidersHorizontal],
           ] as const
         ).map(([val, title, Icon]) => {
@@ -97,14 +101,52 @@ export function JournalSearchForm({
         })}
       </fieldset>
 
+      {/* Venue Filter Pills (in live mode) */}
+      {mode === "live" && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold text-[#5a6e85] mr-1">Venue Type:</span>
+          {(
+            [
+              ["all", "All Venues (Journals & Conferences)"],
+              ["journal", "Journals Only"],
+              ["conference", "Conferences Only"],
+            ] as const
+          ).map(([typeVal, label]) => {
+            const isSelected = venueType === typeVal;
+            return (
+              <button
+                type="button"
+                key={typeVal}
+                onClick={() => setVenueType(typeVal)}
+                className={`rounded-full px-3.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+                  isSelected
+                    ? "bg-[#112b46] text-[#2dd4bf] shadow-xs"
+                    : "border border-[#d7e2ec] bg-[#f8fafc] text-[#5a6e85] hover:bg-white hover:text-[#112b46]"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Search Input Bar */}
       <div>
         <div className="mb-2.5 flex items-center justify-between">
           <label className="block text-sm font-bold text-[#112b46]" htmlFor="journal-search">
-            {mode === "live" ? "Which journal are you looking for?" : "Find journals that fit your research"}
+            {mode === "live"
+              ? venueType === "conference"
+                ? "Which conference are you looking for?"
+                : venueType === "journal"
+                  ? "Which journal are you looking for?"
+                  : "Which journal or conference are you looking for?"
+              : "Find venues that fit your research"}
           </label>
           <span className="text-xs font-medium text-[#5a6e85]">
-            {mode === "reviewed" ? "Topic keywords, subject area, or title" : "Full journal title or 8-digit ISSN"}
+            {mode === "reviewed"
+              ? "Topic keywords, subject area, or title"
+              : "Title, acronym (e.g. CVPR), or ISSN / ISBN"}
           </span>
         </div>
 
@@ -120,7 +162,11 @@ export function JournalSearchForm({
               maxLength={200}
               placeholder={
                 mode === "live"
-                  ? "Enter journal title or ISSN (e.g. Nature or 0028-0836)…"
+                  ? venueType === "conference"
+                    ? "Enter conference name or acronym (e.g. CVPR, INFOCOM, NeurIPS)…"
+                    : venueType === "journal"
+                      ? "Enter journal title or ISSN (e.g. Nature or 0028-0836)…"
+                      : "Enter journal, conference name, or ISSN/ISBN (e.g. Nature, CVPR)…"
                   : "Research topic, subject domain, or journal name…"
               }
               className="min-h-12 w-full min-w-0 bg-transparent text-base text-[#112b46] outline-none placeholder:text-[#5a6e85]/60 font-medium"
@@ -141,7 +187,7 @@ export function JournalSearchForm({
             className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2.5 rounded-xl bg-[#087f8c] px-8 text-sm font-bold text-white shadow-md shadow-[#087f8c]/25 transition-all hover:bg-[#066b76] disabled:opacity-60 cursor-pointer"
           >
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : null}
-            {pending ? "Searching…" : "Search journals"}
+            {pending ? "Searching…" : "Search venues"}
             {!pending && <ArrowRight className="size-4" />}
           </button>
         </div>
@@ -150,7 +196,7 @@ export function JournalSearchForm({
         {mode === "live" && (
           <div className="mt-3.5 flex flex-wrap items-center gap-2 text-xs text-[#5a6e85]">
             <span className="font-semibold text-[#112b46] mr-1">Popular searches:</span>
-            {["Nature", "The Lancet", "Scientific Reports", "IEEE Access"].map((title) => (
+            {["Nature", "CVPR", "The Lancet", "IEEE INFOCOM", "NeurIPS", "Scientific Reports"].map((title) => (
               <button
                 type="button"
                 key={title}

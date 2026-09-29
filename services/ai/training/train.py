@@ -109,12 +109,14 @@ baseline_valid=metrics(w,valid)
 best=w.copy(); best_mrr=baseline_valid['mrr']; best_step=0
 for step in range(1,201):
     logits=np.clip(x@w*10,-30,30)
-    grad=-(x.T@(1/(1+np.exp(logits))))/len(x)*10 + .002*(w-1)
+    grad=-(x.T@(1/(1+np.exp(logits))))/len(x)*10 + .005*(w-1)
     m=.9*m+.1*grad;v=.999*v+.001*grad*grad
-    w=np.clip(w-.025*(m/(1-.9**step))/(np.sqrt(v/(1-.999**step))+1e-8),.1,4)
+    w=np.clip(w-.015*(m/(1-.9**step))/(np.sqrt(v/(1-.999**step))+1e-8),.1,4)
     if step%10==0:
         current=metrics(w,valid)
-        if current['mrr']>best_mrr: best=w.copy();best_mrr=current['mrr'];best_step=step
+        score = current['mrr'] + 0.5 * current['top1VenueRecovery']
+        if score > (best_mrr + 0.5 * baseline_valid['top1VenueRecovery']) and current['mrr'] >= baseline_valid['mrr'] + 0.005:
+            best=w.copy();best_mrr=current['mrr'];best_step=step
 trained_valid=metrics(best,valid); baseline_test=metrics(np.ones_like(w),test); trained_test=metrics(best,test)
 # Frozen validation-selected model evaluated once on test. No test-set tuning.
 promote=(best_step>0 and trained_valid['mrr']>=baseline_valid['mrr']+.005 and trained_test['mrr']>=baseline_test['mrr'] and trained_test['top1VenueRecovery']>=baseline_test['top1VenueRecovery'])

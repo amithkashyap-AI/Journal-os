@@ -75,8 +75,10 @@ export function registerDiscoveryRoutes(app: FastifyInstance, options: AppOption
     const data = await snapshot(request.params.id);
     if (!data) return reply.code(404).send({error: "NOT_FOUND"});
     const assessment = await store.getAssessment(request.params.id);
+    const editors = await store.listEditors(request.params.id);
     return {journal: data.journal, evidence: data.evidence, publication: data.publication,
-      assessment: assessment ? {...assessment, stale: assessment.evidenceHash !== hash(data.context)} : null};
+      assessment: assessment ? {...assessment, stale: assessment.evidenceHash !== hash(data.context)} : null,
+      editors};
   });
   app.get("/v1/journals/managed", {onRequest: [app.authenticate]}, async (request) => {
     const all = await store.listJournals();
