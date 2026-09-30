@@ -36,7 +36,7 @@ export function CustomRolesManager({
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<CreateRoleFormValues>({
-    resolver: zodResolver(createRoleFormSchema),
+    resolver: zodResolver(createRoleFormSchema as any),
     defaultValues: { permissionKeys: [] },
   });
   const selectedPermissions = watch("permissionKeys") ?? [];
